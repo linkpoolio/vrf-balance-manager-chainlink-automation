@@ -21,6 +21,17 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     uint64[] private s_watchList;
     uint256 private constant MIN_GAS_FOR_TRANSFER = 55_000;
     PegswapInterface pegSwapRouter;
+    bool needsPegswap;
+
+    // LINK addresses by network ID
+    address private constant BNB_LINK_ERC677 =
+        0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
+    address private constant BNB_LINK_ERC20 =
+        0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
+    address private constant POLYGON_LINK_ERC20 =
+        0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
+    address private constant POLYGON_LINK_ERC677 =
+        0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
 
     struct Target {
         bool isActive;
@@ -248,6 +259,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
 
     function setLinkTokenAddress(address linkTokenAddress) public onlyOwner {
         require(linkTokenAddress != address(0));
+        if (linkTokenAddress == BNB_LINK_ERC20 ||)
         emit LinkTokenAddressUpdated(address(LINKTOKEN), linkTokenAddress);
         LINKTOKEN = LinkTokenInterface(linkTokenAddress);
     }
