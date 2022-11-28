@@ -21,15 +21,15 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     uint64[] private s_watchList;
     uint256 private constant MIN_GAS_FOR_TRANSFER = 55_000;
     PegswapInterface pegSwapRouter;
-    bool needsPegswap;
+    bool public needsPegswap;
 
     // LINK addresses by network ID
     address private constant BNB_LINK_ERC677 =
         0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
     address private constant BNB_LINK_ERC20 =
-        0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
+        0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD;
     address private constant POLYGON_LINK_ERC20 =
-        0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
+        0xb0897686c545045aFc77CF20eC7A532E3120E0F1;
     address private constant POLYGON_LINK_ERC677 =
         0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
 
@@ -86,6 +86,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         address _keeperRegistryAddress,
         uint256 _minWaitPeriodSeconds
     ) {
+        owner = msg.sender;
         setLinkTokenAddress(_linkTokenAddress);
         setVRFCoordinatorV2Address(_coordinatorAddress);
         setKeeperRegistryAddress(_keeperRegistryAddress);
@@ -259,7 +260,12 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
 
     function setLinkTokenAddress(address linkTokenAddress) public onlyOwner {
         require(linkTokenAddress != address(0));
-        if (linkTokenAddress == BNB_LINK_ERC20 ||)
+        if (
+            linkTokenAddress == BNB_LINK_ERC20 ||
+            linkTokenAddress == POLYGON_LINK_ERC20
+        ) {
+            needsPegswap = true;
+        }
         emit LinkTokenAddressUpdated(address(LINKTOKEN), linkTokenAddress);
         LINKTOKEN = LinkTokenInterface(linkTokenAddress);
     }
