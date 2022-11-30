@@ -7,20 +7,25 @@ import "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "../contracts/interfaces/PegswapInterface.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
+import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     address public owner;
     address public _tenantOwner;
     uint256 public lastTimeStamp;
     VRFCoordinatorV2Interface public COORDINATOR;
-    LinkTokenInterface public LINKTOKEN;
+    LinkTokenInterface public ERC677LINK;
     IERC20 ERC20LINK;
-    address public WETH;
+    IERC20 ERC20ASSET;
     address public keeperRegistryAddress;
     uint256 public minWaitPeriodSeconds;
+    address public dexAddress;
+    uint256 contractLINKBalance;
+    address public ERC20AssetAddress;
     uint64[] private s_watchList;
     uint256 private constant MIN_GAS_FOR_TRANSFER = 55_000;
     PegswapInterface pegSwapRouter;
+    IUniswapV2Router02 DEX_ROUTER;
     bool public needsPegswap;
 
     // LINK addresses by network ID
@@ -29,9 +34,9 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     address private constant BNB_LINK_ERC20 =
         0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD;
     address private constant POLYGON_LINK_ERC20 =
-        0xb0897686c545045aFc77CF20eC7A532E3120E0F1;
+        0x53E0bca35eC356BD5ddDFebbD1Fc0fD03FaBad39;
     address private constant POLYGON_LINK_ERC677 =
-        0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
+        0xb0897686c545045aFc77CF20eC7A532E3120E0F1;
 
     struct Target {
         bool isActive;
@@ -55,6 +60,19 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     event MinWaitPeriodUpdated(
         uint256 oldMinWaitPeriod,
         uint256 newMinWaitPeriod
+    );
+    event PegswapRouterUpdated(
+        address oldPegswapRouter,
+        address newPegswapRouter
+    );
+    event DEXAddressUpdated(address oldDEXAddress, address newDEXAddress);
+    event ContractLINKBalanceUpdated(
+        uint256 oldContractLINKBalance,
+        uint256 newContractLINKBalance
+    );
+    event ERC20AssetAddressUpdated(
+        address oldERC20AssetAddress,
+        address newERC20AssetAddress
     );
 
     // Errors
@@ -84,13 +102,19 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         address _linkTokenAddress,
         address _coordinatorAddress,
         address _keeperRegistryAddress,
-        uint256 _minWaitPeriodSeconds
+        uint256 _minWaitPeriodSeconds,
+        address _dexAddress,
+        uint256 _linkContractBalance,
+        address _erc20Asset
     ) {
         owner = msg.sender;
         setLinkTokenAddress(_linkTokenAddress);
         setVRFCoordinatorV2Address(_coordinatorAddress);
         setKeeperRegistryAddress(_keeperRegistryAddress);
         setMinWaitPeriodSeconds(_minWaitPeriodSeconds);
+        setDEXAddress(_dexAddress);
+        setContractLINKBalance(_linkContractBalance);
+        setERC20AssetAddress(_erc20Asset);
     }
 
     function setWatchList(
@@ -140,7 +164,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         uint64[] memory needsFunding = new uint64[](watchList.length);
         uint256 count = 0;
         uint256 minWaitPeriod = minWaitPeriodSeconds;
-        uint256 contractBalance = LINKTOKEN.balanceOf(address(this));
+        uint256 contractBalance = ERC677LINK.balanceOf(address(this));
         Target memory target;
         for (uint256 idx = 0; idx < watchList.length; idx++) {
             target = s_targets[watchList[idx]];
@@ -167,7 +191,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
 
     function topUp(uint64[] memory needsFunding) public whenNotPaused {
         uint256 _minWaitPeriodSeconds = minWaitPeriodSeconds;
-        uint256 contractBalance = LINKTOKEN.balanceOf(address(this));
+        uint256 contractBalance = ERC677LINK.balanceOf(address(this));
         Target memory target;
         for (uint256 idx = 0; idx < needsFunding.length; idx++) {
             target = s_targets[needsFunding[idx]];
@@ -181,7 +205,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
                 subscriptionBalance < target.minBalanceJuels &&
                 contractBalance >= target.topUpAmountJuels
             ) {
-                bool success = LINKTOKEN.transferAndCall(
+                bool success = ERC677LINK.transferAndCall(
                     address(COORDINATOR),
                     target.topUpAmountJuels,
                     abi.encode(needsFunding[idx])
@@ -223,6 +247,23 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         whenNotPaused
     {
         uint64[] memory needsFunding = abi.decode(performData, (uint64[]));
+
+        // swap asset for LINK
+        if (needsPegswap) {
+            dexSwap(
+                address(ERC20ASSET),
+                address(ERC20LINK),
+                ERC20ASSET.balanceOf(address(this))
+            );
+            pegSwap();
+        } else {
+            dexSwap(
+                address(ERC20ASSET),
+                address(ERC677LINK),
+                ERC20ASSET.balanceOf(address(this))
+            );
+        }
+        // top up subscriptions
         topUp(needsFunding);
     }
 
@@ -261,13 +302,22 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     function setLinkTokenAddress(address linkTokenAddress) public onlyOwner {
         require(linkTokenAddress != address(0));
         if (
-            linkTokenAddress == BNB_LINK_ERC20 ||
-            linkTokenAddress == POLYGON_LINK_ERC20
+            linkTokenAddress == BNB_LINK_ERC677 ||
+            linkTokenAddress == POLYGON_LINK_ERC677
         ) {
             needsPegswap = true;
+            if (linkTokenAddress == BNB_LINK_ERC677) {
+                ERC20LINK = IERC20(BNB_LINK_ERC20);
+            } else {
+                ERC20LINK = IERC20(POLYGON_LINK_ERC20);
+            }
+
+            ERC677LINK = LinkTokenInterface(linkTokenAddress);
+            emit LinkTokenAddressUpdated(address(ERC20LINK), linkTokenAddress);
+        } else {
+            emit LinkTokenAddressUpdated(address(ERC677LINK), linkTokenAddress);
+            ERC677LINK = LinkTokenInterface(linkTokenAddress);
         }
-        emit LinkTokenAddressUpdated(address(LINKTOKEN), linkTokenAddress);
-        LINKTOKEN = LinkTokenInterface(linkTokenAddress);
     }
 
     function setMinWaitPeriodSeconds(uint256 period) public onlyOwner {
@@ -275,8 +325,26 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         minWaitPeriodSeconds = period;
     }
 
+    function setDEXAddress(address _dexAddress) public onlyOwner {
+        require(_dexAddress != address(0));
+        emit DEXAddressUpdated(dexAddress, _dexAddress);
+        DEX_ROUTER = IUniswapV2Router02(_dexAddress);
+    }
+
+    function setContractLINKBalance(uint256 _amount) public onlyOwner {
+        require(_amount > 0);
+        emit ContractLINKBalanceUpdated(contractLINKBalance, _amount);
+        contractLINKBalance = _amount;
+    }
+
+    function setERC20AssetAddress(address _assetAddress) public onlyOwner {
+        require(_assetAddress != address(0));
+        emit ERC20AssetAddressUpdated(ERC20AssetAddress, _assetAddress);
+        ERC20AssetAddress = _assetAddress;
+    }
+
     function getContractLinkBalance() public view returns (uint256) {
-        return LINKTOKEN.balanceOf(address(this));
+        return ERC677LINK.balanceOf(address(this));
     }
 
     /**
@@ -306,17 +374,53 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     {
         require(payee != address(0));
         emit FundsWithdrawn(amount, payee);
-        LINKTOKEN.transfer(payee, amount);
+        ERC677LINK.transfer(payee, amount);
     }
 
-    // TODO: Create Pegswap function if BNB or Polygon
-    // Create Dex function to swap token for LINK
+    function checkContractLINKBalance() public view returns (uint256) {
+        return ERC677LINK.balanceOf(address(this));
+    }
 
-    function pegSwap(address _token, uint256 _amount) public onlyOwner {
-        require(_token != address(0));
-        require(_amount > 0);
-        IERC20(_token).transferFrom(msg.sender, address(this), _amount);
-        IERC20(_token).approve(address(pegSwapRouter), _amount);
-        pegSwapRouter.swap(_amount, address(ERC20LINK), address(LINKTOKEN));
+    // Dex functions
+    function dexSwap(
+        address _fromToken,
+        address _toToken,
+        uint256 _amount
+    ) internal returns (uint256) {
+        if (_fromToken == _toToken) {
+            return _amount;
+        }
+        address[] memory path = new address[](2);
+        path[0] = _fromToken;
+        path[1] = _toToken;
+        uint256[] memory amounts = DEX_ROUTER.swapExactTokensForTokens(
+            _amount,
+            1,
+            path,
+            address(this),
+            block.timestamp
+        );
+        return amounts[1];
+    }
+
+    // PegSwap functions
+
+    function pegSwap() internal onlyOwner whenNotPaused {
+        require(needsPegswap, "No pegswap needed");
+        pegSwapRouter.swap(
+            ERC20LINK.balanceOf(address(this)),
+            address(ERC20LINK),
+            address(ERC677LINK)
+        );
+    }
+
+    function setPegSwapRouter(address _pegSwapRouter) external onlyOwner {
+        require(_pegSwapRouter != address(0));
+        emit PegswapRouterUpdated(address(pegSwapRouter), _pegSwapRouter);
+        pegSwapRouter = PegswapInterface(_pegSwapRouter);
+    }
+
+    function getPegSwapRouter() external view returns (address) {
+        return address(pegSwapRouter);
     }
 }

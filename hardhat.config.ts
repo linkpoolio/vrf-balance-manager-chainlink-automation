@@ -4,6 +4,7 @@ require("dotenv").config();
 
 const MAINNET_RPC_URL = process.env.MAINNET_RPC_URL as string;
 const GOERLI_RPC_URL = process.env.MAINNET_RPC_URL as string;
+const BINANCE_RPC_URL = process.env.BINANCE_RPC_URL as string;
 
 const config: HardhatUserConfig = {
   solidity: "0.8.17",
@@ -12,7 +13,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       // comment out forking to run tests on a local chain
       forking: {
-        url: MAINNET_RPC_URL,
+        url: BINANCE_RPC_URL,
       },
     },
   },

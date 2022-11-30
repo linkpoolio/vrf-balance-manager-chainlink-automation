@@ -11,6 +11,7 @@
     "@chainlink/contracts": "^0.5.1",
     "@openzeppelin/contracts": "^4.7.3",
     "@openzeppelin/contracts-upgradeable": "^4.7.3",
+    "@uniswap/v2-periphery": "github:uniswap/v2-periphery",
     "@uniswap/v3-periphery": "^1.4.3",
     "dotenv": "^16.0.3"
   }
