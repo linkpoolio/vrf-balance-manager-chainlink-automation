@@ -10,13 +10,13 @@ import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 contract VRFBalancer is Pausable, AutomationCompatibleInterface {
-    address public owner;
-    address public _tenantOwner;
-    uint256 public lastTimeStamp;
     VRFCoordinatorV2Interface public COORDINATOR;
     LinkTokenInterface public ERC677LINK;
     IERC20 ERC20LINK;
     IERC20 ERC20ASSET;
+    PegswapInterface pegSwapRouter;
+    IUniswapV2Router02 DEX_ROUTER;
+    address public owner;
     address public keeperRegistryAddress;
     uint256 public minWaitPeriodSeconds;
     address public dexAddress;
@@ -24,8 +24,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     address public ERC20AssetAddress;
     uint64[] private s_watchList;
     uint256 private constant MIN_GAS_FOR_TRANSFER = 55_000;
-    PegswapInterface pegSwapRouter;
-    IUniswapV2Router02 DEX_ROUTER;
+
     bool public needsPegswap;
 
     // LINK addresses by network ID
@@ -173,7 +172,6 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
             );
             if (
                 target.lastTopUpTimestamp + minWaitPeriod <= block.timestamp &&
-                contractBalance >= target.topUpAmountJuels &&
                 subscriptionBalance < target.minBalanceJuels
             ) {
                 needsFunding[count] = watchList[idx];
@@ -364,8 +362,8 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     /**
      * @notice Check contract status.
      */
-    function isPaused() external view onlyOwner {
-        paused();
+    function isPaused() external view returns (bool) {
+        return paused();
     }
 
     function withdraw(uint256 amount, address payable payee)
@@ -386,7 +384,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         address _fromToken,
         address _toToken,
         uint256 _amount
-    ) internal returns (uint256) {
+    ) internal whenNotPaused returns (uint256) {
         if (_fromToken == _toToken) {
             return _amount;
         }
@@ -405,7 +403,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
 
     // PegSwap functions
 
-    function pegSwap() internal onlyOwner whenNotPaused {
+    function pegSwap() internal whenNotPaused {
         require(needsPegswap, "No pegswap needed");
         pegSwapRouter.swap(
             ERC20LINK.balanceOf(address(this)),
