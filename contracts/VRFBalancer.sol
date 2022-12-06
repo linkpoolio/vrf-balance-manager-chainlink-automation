@@ -73,6 +73,8 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         address oldERC20AssetAddress,
         address newERC20AssetAddress
     );
+    event PegSwapSuccess(uint256 amount, address from, address to);
+    event DexSwapSuccess(uint256 amount, address from, address to);
 
     // Errors
 
@@ -245,24 +247,25 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         whenNotPaused
     {
         uint64[] memory needsFunding = abi.decode(performData, (uint64[]));
-
-        // swap asset for LINK
-        if (needsPegswap) {
-            dexSwap(
-                address(ERC20ASSET),
-                address(ERC20LINK),
-                ERC20ASSET.balanceOf(address(this))
-            );
-            pegSwap();
-        } else {
-            dexSwap(
-                address(ERC20ASSET),
-                address(ERC677LINK),
-                ERC20ASSET.balanceOf(address(this))
-            );
+        if (needsFunding.length > 0) {
+            // swap asset for LINK
+            if (needsPegswap) {
+                dexSwap(
+                    address(ERC20ASSET),
+                    address(ERC20LINK),
+                    ERC20ASSET.balanceOf(address(this))
+                );
+                pegSwap();
+            } else {
+                dexSwap(
+                    address(ERC20ASSET),
+                    address(ERC677LINK),
+                    ERC20ASSET.balanceOf(address(this))
+                );
+            }
+            // top up subscriptions
+            topUp(needsFunding);
         }
-        // top up subscriptions
-        topUp(needsFunding);
     }
 
     // Setters
@@ -380,14 +383,18 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     }
 
     // Dex functions
+    /**
+     * @notice Uses the Uniswap Clone contract router to swap ERC20 for ERC20/ERC677 LINK.
+     * @param _fromToken Token address sending to swap.
+     * @param _toToken Token address receiving from swap.
+     * @param _amount Total tokens sending to swap.
+     */
     function dexSwap(
         address _fromToken,
         address _toToken,
         uint256 _amount
-    ) internal whenNotPaused returns (uint256) {
-        if (_fromToken == _toToken) {
-            return _amount;
-        }
+    ) internal whenNotPaused {
+        
         address[] memory path = new address[](2);
         path[0] = _fromToken;
         path[1] = _toToken;
@@ -398,11 +405,14 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
             address(this),
             block.timestamp
         );
-        return amounts[1];
+        emit DexSwapSuccess(amounts[1], _fromToken, _toToken);
+
     }
 
     // PegSwap functions
-
+    /**
+     * @notice Uses the PegSwap contract to swap ERC20 LINK for ERC677 LINK.
+     */
     function pegSwap() internal whenNotPaused {
         require(needsPegswap, "No pegswap needed");
         pegSwapRouter.swap(
@@ -410,6 +420,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
             address(ERC20LINK),
             address(ERC677LINK)
         );
+        emit PegSwapSuccess(ERC677LINK.balanceOf(address(this)), address(ERC20LINK), address(ERC677LINK));
     }
 
     function setPegSwapRouter(address _pegSwapRouter) external onlyOwner {
