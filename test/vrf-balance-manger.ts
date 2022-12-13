@@ -6,46 +6,56 @@ import { deploy } from "./utils/helpers";
 import { any } from "hardhat/internal/core/params/argumentTypes";
 
 describe("VRF Balance Manager", function () {
+  const BASE_FEE = "2500000000";
+  const GAS_PRICE_LINK = 1e9;
   let owner: any,
-    linkTokenAddress: any,
-    coordinatorAddress: any,
-    keeperRegistryAddress: any,
+    linkTokenERC20: any,
+    linkTokenERC677: any,
     minWaitPeriodSeconds: any,
-    dexAddress: any,
     linkContractBalance: any,
-    erc20AssetAddress: any,
-    pegswapRouterAddress: any,
-    mockKeeper: any,
-    vrfBalancerMock: any;
+    erc20WETHMock: any,
+    pegswapRouterMock: any,
+    vrfCoordinatorV2Mock: any,
+    uniswapV2RouterMock: any,
+    uniswapV2FactoryMock: any;
   let vrfBalancer: any;
   beforeEach(async () => {
     const accounts = await ethers.getSigners();
     owner = accounts[0];
-    mockKeeper = accounts[1];
-    linkTokenAddress = "0x404460C6A5EdE2D891e8297795264fDe62ADBB75"; // Binance LINK ERC677
-    coordinatorAddress = "0xc587d9053cd1118f25F645F9E08BB98c9712A4EE"; // Binance VRF Coordinator
-    keeperRegistryAddress = "0x02777053d6764996e594c3E88AF1D58D5363a2e6"; // Binance Keeper Registry Mainnet
-    minWaitPeriodSeconds = 60;
-    dexAddress = "0x10ED43C718714eb63d5aA57B78B54704E256024E"; // Pancake swap router
-    linkContractBalance = 5;
-    erc20AssetAddress = "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c"; // Binance WETH
-    pegswapRouterAddress = "0x1FCc3B22955e76Ca48bF025f1A6993685975Bb9e"; // Pegswap router Binance
-    
-    vrfBalancer = await deploy("VRFBalancer", [
-      linkTokenAddress,
-      coordinatorAddress,
-      keeperRegistryAddress,
-      minWaitPeriodSeconds,
-      dexAddress,
-      linkContractBalance,
-      erc20AssetAddress,
+    pegswapRouterMock = await deploy("PegSwap");
+    vrfCoordinatorV2Mock = await deploy("VRFCoordinatorV2Mock", [
+      BASE_FEE,
+      GAS_PRICE_LINK,
     ]);
-    vrfBalancerMock = await deploy("VRFBalancerMock", [dexAddress]);
+    minWaitPeriodSeconds = 60;
+    linkContractBalance = 5;
+    erc20WETHMock = await deploy("ERC20Mock", ["Wrapped ETH", "WETH"]);
+    linkTokenERC20 = await deploy("ERC20Mock", ["Chainlink", "LINK"]);
+    linkTokenERC677 = await deploy("ERC677", [
+      "Chainlink",
+      "LINK",
+      "1000000000000000000000000",
+    ]);
+    uniswapV2FactoryMock = await deploy("UniswapV2Factory", [owner.address]);
+    // UniswapV2Router02 was too large to deploy in hardhat
+    uniswapV2RouterMock = await deploy("UniswapV2Router01", [
+      uniswapV2FactoryMock.address,
+      erc20WETHMock.address,
+    ]);
+    vrfBalancer = await deploy("VRFBalancer", [
+      linkTokenERC677.address,
+      vrfCoordinatorV2Mock.address,
+      owner.address,
+      minWaitPeriodSeconds,
+      uniswapV2RouterMock.address,
+      linkContractBalance,
+      erc20WETHMock.address,
+    ]);
   });
 
   describe("constructor", function () {
     it("sets Pegswap variable if needed", async () => {
-      assert.equal(await vrfBalancer.needsPegswap(), true);
+      assert.equal(await vrfBalancer.needsPegswap(), false);
     });
   });
 
@@ -63,7 +73,9 @@ describe("VRF Balance Manager", function () {
 
   describe("setLinkTokenAddress()", () => {
     it("should emit LinkTokenAddressUpdated event when address is set successfully", async () => {
-      const result = await vrfBalancer.setLinkTokenAddress(linkTokenAddress);
+      const result = await vrfBalancer.setLinkTokenAddress(
+        linkTokenERC677.address
+      );
       expect(result).to.emit(vrfBalancer, "LinkTokenAddressUpdated");
     });
     it("should revert when address is 0", async () => {
@@ -79,23 +91,32 @@ describe("VRF Balance Manager", function () {
 
   describe("dexSwap()", () => {
     it("should swap tokens", async () => {
-      vrfBalancerMock.dexSwap();
+      vrfBalancer.dexSwap();
     });
-
   });
 
   describe("pegswap", function () {
     it("gets pegswap router address", async () => {
-      await vrfBalancer.setPegSwapRouter(pegswapRouterAddress);
-      assert.equal(await vrfBalancer.getPegSwapRouter(), pegswapRouterAddress);
+      await vrfBalancer.setPegSwapRouter(pegswapRouterMock.address);
+      assert(
+        (await vrfBalancer.getPegSwapRouter()) == pegswapRouterMock.address
+      );
     });
   });
 
   describe("checkUpkeep", function () {
-    it("returns false if vrfBalancer is not live", async () => {
+    it("returns false if vrfBalancer is paused", async () => {
+      await vrfBalancer.pause();
       await network.provider.send("evm_increaseTime", [1]);
       await network.provider.request({ method: "evm_mine", params: [] });
-      const { upkeepNeeded, performData } = await vrfBalancer.callStatic.checkUpkeep("0x");
+      await expect(vrfBalancer.callStatic.checkUpkeep("0x")).to.be.revertedWith(
+        "Pausable: paused"
+      );
+    });
+    it("returns false if no vrf subscriptions need funding", async () => {
+      await network.provider.send("evm_increaseTime", [1]);
+      await network.provider.request({ method: "evm_mine", params: [] });
+      const { upkeepNeeded } = await vrfBalancer.callStatic.checkUpkeep("0x");
       assert(!upkeepNeeded);
     });
   });
