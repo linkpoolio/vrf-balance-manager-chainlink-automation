@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "../contracts/interfaces/PegswapInterface.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import "hardhat/console.sol";
 
 contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     VRFCoordinatorV2Interface public COORDINATOR;
@@ -73,6 +74,8 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         address oldERC20AssetAddress,
         address newERC20AssetAddress
     );
+    event PegSwapSuccess(uint256 amount, address from, address to);
+    event DexSwapSuccess(uint256 amount, address from, address to);
 
     // Errors
 
@@ -245,30 +248,30 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         whenNotPaused
     {
         uint64[] memory needsFunding = abi.decode(performData, (uint64[]));
-
-        // swap asset for LINK
-        if (needsPegswap) {
-            dexSwap(
-                address(ERC20ASSET),
-                address(ERC20LINK),
-                ERC20ASSET.balanceOf(address(this))
-            );
-            pegSwap();
-        } else {
-            dexSwap(
-                address(ERC20ASSET),
-                address(ERC677LINK),
-                ERC20ASSET.balanceOf(address(this))
-            );
+        if (needsFunding.length > 0) {
+            // swap asset for LINK
+            if (needsPegswap) {
+                _dexSwap(
+                    address(ERC20ASSET),
+                    address(ERC20LINK),
+                    ERC20ASSET.balanceOf(address(this))
+                );
+                pegSwap();
+            } else {
+                _dexSwap(
+                    address(ERC20ASSET),
+                    address(ERC677LINK),
+                    ERC20ASSET.balanceOf(address(this))
+                );
+            }
+            // top up subscriptions
+            topUp(needsFunding);
         }
-        // top up subscriptions
-        topUp(needsFunding);
     }
-
-    // Setters
 
     /**
      * @notice Sets the VRF coordinator address.
+     * @param coordinatorAddress The address of the VRF coordinator.
      */
     function setVRFCoordinatorV2Address(address coordinatorAddress)
         public
@@ -284,6 +287,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
 
     /**
      * @notice Sets the keeper registry address.
+     * @param _keeperRegistryAddress The address of the keeper registry.
      */
     function setKeeperRegistryAddress(address _keeperRegistryAddress)
         public
@@ -297,6 +301,10 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         keeperRegistryAddress = _keeperRegistryAddress;
     }
 
+    /**
+     * @notice Sets the LINK token address.
+     * @param linkTokenAddress The address of the LINK token.
+     */
     function setLinkTokenAddress(address linkTokenAddress) public onlyOwner {
         require(linkTokenAddress != address(0));
         if (
@@ -318,29 +326,50 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         }
     }
 
+    /**
+     * @notice Sets the minimum wait period between top up checks.
+     * @param period The minimum wait period in seconds.
+     */
     function setMinWaitPeriodSeconds(uint256 period) public onlyOwner {
         emit MinWaitPeriodUpdated(minWaitPeriodSeconds, period);
         minWaitPeriodSeconds = period;
     }
 
+    /**
+     * @notice Sets the decentralized exchange address.
+     * @param _dexAddress The address of the decentralized exchange.
+     * @dev The decentralized exchange must support the uniswap v2 router interface.
+     */
     function setDEXAddress(address _dexAddress) public onlyOwner {
         require(_dexAddress != address(0));
         emit DEXAddressUpdated(dexAddress, _dexAddress);
         DEX_ROUTER = IUniswapV2Router02(_dexAddress);
     }
 
+    /**
+     * @notice Sets the minimum LINK balance the contract should have.
+     * @param _amount The minimum LINK balance in wei.
+     */
     function setContractLINKBalance(uint256 _amount) public onlyOwner {
         require(_amount > 0);
         emit ContractLINKBalanceUpdated(contractLINKBalance, _amount);
         contractLINKBalance = _amount;
     }
 
+    /**
+     * @notice Sets the address of the ERC20 asset being traded.
+     * @param _assetAddress The address of the ERC20 asset.
+     **/
     function setERC20AssetAddress(address _assetAddress) public onlyOwner {
         require(_assetAddress != address(0));
         emit ERC20AssetAddressUpdated(ERC20AssetAddress, _assetAddress);
         ERC20AssetAddress = _assetAddress;
     }
 
+    /**
+     * @notice Gets the ERC677 LINK balance of the contract.
+     * @return uint256 The LINK balance in wei.
+     **/
     function getContractLinkBalance() public view returns (uint256) {
         return ERC677LINK.balanceOf(address(this));
     }
@@ -361,6 +390,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
 
     /**
      * @notice Check contract status.
+     * @return bool
      */
     function isPaused() external view returns (bool) {
         return paused();
@@ -375,19 +405,25 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         ERC677LINK.transfer(payee, amount);
     }
 
-    function checkContractLINKBalance() public view returns (uint256) {
-        return ERC677LINK.balanceOf(address(this));
-    }
-
-    // Dex functions
     function dexSwap(
         address _fromToken,
         address _toToken,
         uint256 _amount
-    ) internal whenNotPaused returns (uint256) {
-        if (_fromToken == _toToken) {
-            return _amount;
-        }
+    ) public onlyOwner {
+        _dexSwap(_fromToken, _toToken, _amount);
+    }
+
+    /**
+     * @notice Uses the Uniswap Clone contract router to swap ERC20 for ERC20/ERC677 LINK.
+     * @param _fromToken Token address sending to swap.
+     * @param _toToken Token address receiving from swap.
+     * @param _amount Total tokens sending to swap.
+     */
+    function _dexSwap(
+        address _fromToken,
+        address _toToken,
+        uint256 _amount
+    ) internal whenNotPaused {
         address[] memory path = new address[](2);
         path[0] = _fromToken;
         path[1] = _toToken;
@@ -398,11 +434,12 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
             address(this),
             block.timestamp
         );
-        return amounts[1];
+        emit DexSwapSuccess(amounts[1], _fromToken, _toToken);
     }
 
-    // PegSwap functions
-
+    /**
+     * @notice Uses the PegSwap contract to swap ERC20 LINK for ERC677 LINK.
+     */
     function pegSwap() internal whenNotPaused {
         require(needsPegswap, "No pegswap needed");
         pegSwapRouter.swap(
@@ -410,14 +447,27 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
             address(ERC20LINK),
             address(ERC677LINK)
         );
+        emit PegSwapSuccess(
+            ERC677LINK.balanceOf(address(this)),
+            address(ERC20LINK),
+            address(ERC677LINK)
+        );
     }
 
+    /**
+     * @notice Sets PegSwap router address.
+     * @param _pegSwapRouter The address of the PegSwap router.
+     */
     function setPegSwapRouter(address _pegSwapRouter) external onlyOwner {
         require(_pegSwapRouter != address(0));
         emit PegswapRouterUpdated(address(pegSwapRouter), _pegSwapRouter);
         pegSwapRouter = PegswapInterface(_pegSwapRouter);
     }
 
+    /**
+     * @notice Gets PegSwap router address.
+     * @return The address of the PegSwap router.
+     */
     function getPegSwapRouter() external view returns (address) {
         return address(pegSwapRouter);
     }
