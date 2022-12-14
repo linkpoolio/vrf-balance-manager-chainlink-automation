@@ -8,17 +8,18 @@ import { any } from "hardhat/internal/core/params/argumentTypes";
 describe("VRF Balance Manager", function () {
   const BASE_FEE = "2500000000";
   const GAS_PRICE_LINK = 1e9;
+  const minWaitPeriodSeconds = 60;
+  const linkContractBalance = 5;
   let owner: any,
     linkTokenERC20: any,
     linkTokenERC677: any,
-    minWaitPeriodSeconds: any,
-    linkContractBalance: any,
     erc20WETHMock: any,
     pegswapRouterMock: any,
     vrfCoordinatorV2Mock: any,
     uniswapV2RouterMock: any,
     uniswapV2FactoryMock: any;
   let vrfBalancer: any;
+
   beforeEach(async () => {
     const accounts = await ethers.getSigners();
     owner = accounts[0];
@@ -27,8 +28,6 @@ describe("VRF Balance Manager", function () {
       BASE_FEE,
       GAS_PRICE_LINK,
     ]);
-    minWaitPeriodSeconds = 60;
-    linkContractBalance = 5;
     erc20WETHMock = await deploy("ERC20Mock", ["Wrapped ETH", "WETH"]);
     linkTokenERC20 = await deploy("ERC20Mock", ["Chainlink", "LINK"]);
     linkTokenERC677 = await deploy("ERC677", [
@@ -37,11 +36,37 @@ describe("VRF Balance Manager", function () {
       "1000000000000000000000000",
     ]);
     uniswapV2FactoryMock = await deploy("UniswapV2Factory", [owner.address]);
+    await uniswapV2FactoryMock.createPair(
+      erc20WETHMock.address,
+      linkTokenERC20.address
+    );
+    const pair = await uniswapV2FactoryMock.getPair(
+      erc20WETHMock.address,
+      linkTokenERC20.address
+    );
     // UniswapV2Router02 was too large to deploy in hardhat
     uniswapV2RouterMock = await deploy("UniswapV2Router01", [
       uniswapV2FactoryMock.address,
       erc20WETHMock.address,
     ]);
+    await erc20WETHMock.approve(
+      uniswapV2RouterMock.address,
+      ethers.utils.parseEther("1")
+    );
+    await linkTokenERC20.approve(
+      uniswapV2RouterMock.address,
+      ethers.utils.parseEther("1")
+    );
+    await uniswapV2RouterMock.addLiquidity(
+      erc20WETHMock.address,
+      linkTokenERC20.address,
+      ethers.utils.parseEther("1"),
+      ethers.utils.parseEther("1"),
+      0,
+      0,
+      owner.address,
+      Date.now() + 1000
+    );
     vrfBalancer = await deploy("VRFBalancer", [
       linkTokenERC677.address,
       vrfCoordinatorV2Mock.address,
