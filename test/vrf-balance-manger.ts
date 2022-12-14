@@ -9,7 +9,7 @@ describe("VRF Balance Manager", function () {
   const BASE_FEE = "2500000000";
   const GAS_PRICE_LINK = 1e9;
   const minWaitPeriodSeconds = 60;
-  const linkContractBalance = 5;
+  const linkContractBalance = ethers.utils.parseEther("5");
   let owner: any,
     linkTokenERC20: any,
     linkTokenERC677: any,
@@ -51,17 +51,17 @@ describe("VRF Balance Manager", function () {
     ]);
     await erc20WETHMock.approve(
       uniswapV2RouterMock.address,
-      ethers.utils.parseEther("1")
+      ethers.utils.parseEther("100")
     );
     await linkTokenERC20.approve(
       uniswapV2RouterMock.address,
-      ethers.utils.parseEther("1")
+      ethers.utils.parseEther("100")
     );
     await uniswapV2RouterMock.addLiquidity(
       erc20WETHMock.address,
       linkTokenERC20.address,
-      ethers.utils.parseEther("1"),
-      ethers.utils.parseEther("1"),
+      ethers.utils.parseEther("100"),
+      ethers.utils.parseEther("100"),
       0,
       0,
       owner.address,
@@ -116,7 +116,22 @@ describe("VRF Balance Manager", function () {
 
   describe("dexSwap()", () => {
     it("should swap tokens", async () => {
-      vrfBalancer.dexSwap();
+      await erc20WETHMock.transfer(
+        vrfBalancer.address,
+        ethers.utils.parseEther("5")
+      );
+      await vrfBalancer.approveAmount(
+        erc20WETHMock.address,
+        uniswapV2RouterMock.address,
+        ethers.utils.parseEther("100")
+      );
+      expect(
+        await vrfBalancer.dexSwap(
+          erc20WETHMock.address,
+          linkTokenERC20.address,
+          ethers.utils.parseEther("1")
+        )
+      ).to.emit(vrfBalancer, "DexSwapSuccess");
     });
   });
 
@@ -126,6 +141,9 @@ describe("VRF Balance Manager", function () {
       assert(
         (await vrfBalancer.getPegSwapRouter()) == pegswapRouterMock.address
       );
+    });
+    it("swap erc20 to erc677 LINK", async () => {
+      vrfBalancer.pegSwap();
     });
   });
 
