@@ -125,15 +125,14 @@ contract PegSwap is Ownable, ReentrancyGuard {
      * @notice swap tokens in one transaction if the sending token supports ERC677
      * @param sender address that initially initiated the call to the source token
      * @param amount count of tokens sent for the swap
-     * @param targetData address of target token encoded as a bytes array
+     * @param target address of target token encoded as a bytes array
      */
     function onTokenTransfer(
         address sender,
         uint256 amount,
-        bytes calldata targetData
+        address target
     ) external {
         address source = msg.sender;
-        address target = abi.decode(targetData, (address));
 
         _removeLiquidity(amount, source, target);
         _addLiquidity(amount, target, source);

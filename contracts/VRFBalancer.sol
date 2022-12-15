@@ -30,8 +30,6 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     address public ERC20AssetAddress;
     uint64[] private s_watchList;
     uint256 private constant MIN_GAS_FOR_TRANSFER = 55_000;
-    address[] public erc20LINKAddresses;
-    address[] public erc677LINKAddresses;
 
     bool public needsPegswap;
 
@@ -117,7 +115,6 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         address _erc20Asset
     ) {
         owner = msg.sender;
-        _setERC20LinkAddresses();
         setLinkTokenAddress(_linkTokenAddress);
         setVRFCoordinatorV2Address(_coordinatorAddress);
         setKeeperRegistryAddress(_keeperRegistryAddress);
@@ -378,11 +375,12 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     }
 
     /**
-     * @notice Gets the ERC677 LINK balance of the contract.
-     * @return uint256 The LINK balance in wei.
+     * @notice Gets an assets balance in the contract.
+     * @param _asset The address of the asset.
+     * @return uint256 The assets balance in wei.
      **/
-    function getContractLinkBalance() public view returns (uint256) {
-        return ERC677LINK.balanceOf(address(this));
+    function getAssetBalance(address _asset) public view returns (uint256) {
+        return IERC20(_asset).balanceOf(address(this));
     }
 
     /**
@@ -480,6 +478,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         require(_pegSwapRouter != address(0));
         emit PegswapRouterUpdated(address(pegSwapRouter), _pegSwapRouter);
         pegSwapRouter = PegswapInterface(_pegSwapRouter);
+        needsPegswap = true;
     }
 
     /**
@@ -495,6 +494,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
      * @param _token The address of the ERC20 asset.
      * @param _to The address of the dex router.
      * @param _amount The amount to approve.
+     * @dev User should approve dex/pegswap before using contract.
      */
     function approveAmount(
         address _token,
@@ -518,13 +518,8 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         return IERC20(_asset).allowance(address(this), address(_router));
     }
 
-    function _setERC20LinkAddresses() internal {
-        erc20LINKAddresses.push(BNB_LINK_ERC20);
-        erc20LINKAddresses.push(POLYGON_LINK_ERC20);
-    }
-
-    function addERC20LinkAddress(address _address) external onlyOwner {
-        require(_address != address(0));
-        erc20LINKAddresses.push(_address);
+    function setERC20Link(address _erc20Link) external onlyOwner {
+        require(_erc20Link != address(0));
+        ERC20LINK = IERC20(_erc20Link);
     }
 }

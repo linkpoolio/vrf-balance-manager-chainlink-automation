@@ -24,6 +24,7 @@ describe("VRF Balance Manager", function () {
     const accounts = await ethers.getSigners();
     owner = accounts[0];
     pegswapRouterMock = await deploy("PegSwap");
+
     vrfCoordinatorV2Mock = await deploy("VRFCoordinatorV2Mock", [
       BASE_FEE,
       GAS_PRICE_LINK,
@@ -35,6 +36,27 @@ describe("VRF Balance Manager", function () {
       "LINK",
       "1000000000000000000000000",
     ]);
+    await linkTokenERC20.approve(
+      pegswapRouterMock.address,
+      ethers.utils.parseEther("100000")
+    );
+    await linkTokenERC677.approve(
+      pegswapRouterMock.address,
+      ethers.utils.parseEther("100000")
+    );
+    //pegswap setup
+    await pegswapRouterMock.addLiquidity(
+      ethers.utils.parseEther("100"),
+      linkTokenERC677.address,
+      linkTokenERC20.address
+    ); //add liquidity erc20 LINK
+    await pegswapRouterMock.addLiquidity(
+      ethers.utils.parseEther("100"),
+      linkTokenERC20.address,
+      linkTokenERC677.address
+    ); //add liquidity erc677 LINK
+
+    //uniswap setup
     uniswapV2FactoryMock = await deploy("UniswapV2Factory", [owner.address]);
     await uniswapV2FactoryMock.createPair(
       erc20WETHMock.address,
@@ -143,7 +165,51 @@ describe("VRF Balance Manager", function () {
       );
     });
     it("swap erc20 to erc677 LINK", async () => {
-      vrfBalancer.pegSwap();
+      await vrfBalancer.setPegSwapRouter(pegswapRouterMock.address);
+      await vrfBalancer.setERC20Link(linkTokenERC20.address);
+      await linkTokenERC20.transfer(
+        vrfBalancer.address,
+        ethers.utils.parseEther("1")
+      );
+      await vrfBalancer.approveAmount(
+        linkTokenERC20.address,
+        pegswapRouterMock.address,
+        ethers.utils.parseEther("100")
+      );
+      await vrfBalancer.pegSwap();
+      const amount = await linkTokenERC677.balanceOf(vrfBalancer.address);
+      assert(ethers.utils.formatEther(amount) == "1.0");
+    });
+  });
+
+  describe("DEX integration", () => {
+    it("should swap tokens", async () => {
+      await erc20WETHMock.transfer(
+        vrfBalancer.address,
+        ethers.utils.parseEther("5")
+      );
+      await vrfBalancer.approveAmount(
+        erc20WETHMock.address,
+        uniswapV2RouterMock.address,
+        ethers.utils.parseEther("100")
+      );
+      expect(
+        await vrfBalancer.dexSwap(
+          erc20WETHMock.address,
+          linkTokenERC20.address,
+          ethers.utils.parseEther("1")
+        )
+      ).to.emit(vrfBalancer, "DexSwapSuccess");
+      await vrfBalancer.setPegSwapRouter(pegswapRouterMock.address);
+      await vrfBalancer.setERC20Link(linkTokenERC20.address);
+      await vrfBalancer.approveAmount(
+        linkTokenERC20.address,
+        pegswapRouterMock.address,
+        ethers.utils.parseEther("100")
+      );
+      await vrfBalancer.pegSwap();
+      const amount = await vrfBalancer.getAssetBalance(linkTokenERC677.address);
+      assert(ethers.utils.formatEther(amount) == "0.987158034397061298");
     });
   });
 
