@@ -27,7 +27,6 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     uint256 public minWaitPeriodSeconds;
     address public dexAddress;
     uint256 contractLINKMinBalance;
-    address public ERC20AssetAddress;
     uint64[] private s_watchList;
     uint256 private constant MIN_GAS_FOR_TRANSFER = 55_000;
 
@@ -122,7 +121,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         setMinWaitPeriodSeconds(_minWaitPeriodSeconds);
         setDEXAddress(_dexAddress);
         setContractLINKMinBalance(_linkContractBalance);
-        setERC20AssetAddress(_erc20Asset);
+        setERC20Asset(_erc20Asset);
     }
 
     /**
@@ -179,6 +178,10 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         return _getUnderfundedSubscriptions();
     }
 
+    /**
+     * @notice Collects the underfunded subscriptions based on user parameters.
+     * @return The subscription IDs that are underfunded.
+     */
     function _getUnderfundedSubscriptions()
         internal
         view
@@ -207,14 +210,24 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         return needsFunding;
     }
 
-    function topUp(uint64[] memory needsFunding) public whenNotPaused {
+    function topUp(uint64[] memory needsFunding) external onlyOwner {
+        _topUp(needsFunding);
+    }
+
+    /**
+     * @notice Top up the specified subscriptions if they are underfunded.
+     * @param _needsFunding The subscriptions to top up.
+     * @dev This function is called by the KeeperRegistry contract.
+     * @dev Checks that the subscription is active, has not been topped up recently, and is underfunded.
+     */
+    function _topUp(uint64[] memory _needsFunding) internal whenNotPaused {
         uint256 _minWaitPeriodSeconds = minWaitPeriodSeconds;
         uint256 contractBalance = ERC677LINK.balanceOf(address(this));
         Target memory target;
-        for (uint256 idx = 0; idx < needsFunding.length; idx++) {
-            target = s_targets[needsFunding[idx]];
+        for (uint256 idx = 0; idx < _needsFunding.length; idx++) {
+            target = s_targets[_needsFunding[idx]];
             (uint96 subscriptionBalance, , , ) = COORDINATOR.getSubscription(
-                needsFunding[idx]
+                _needsFunding[idx]
             );
             if (
                 target.isActive &&
@@ -226,15 +239,16 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
                 bool success = ERC677LINK.transferAndCall(
                     address(COORDINATOR),
                     target.topUpAmount,
-                    abi.encode(needsFunding[idx])
+                    abi.encode(_needsFunding[idx])
                 );
+
                 if (success) {
-                    s_targets[needsFunding[idx]].lastTopUpTimestamp = uint56(
+                    s_targets[_needsFunding[idx]].lastTopUpTimestamp = uint56(
                         block.timestamp
                     );
-                    emit TopUpSucceeded(needsFunding[idx]);
+                    emit TopUpSucceeded(_needsFunding[idx]);
                 } else {
-                    emit TopUpFailed(needsFunding[idx]);
+                    emit TopUpFailed(_needsFunding[idx]);
                 }
             }
             if (gasleft() < MIN_GAS_FOR_TRANSFER) {
@@ -266,7 +280,6 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     {
         uint64[] memory needsFunding = abi.decode(performData, (uint64[]));
         if (needsFunding.length > 0) {
-            // swap asset for LINK
             if (needsPegswap) {
                 _dexSwap(
                     address(ERC20ASSET),
@@ -281,8 +294,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
                     ERC20ASSET.balanceOf(address(this))
                 );
             }
-            // top up subscriptions
-            topUp(needsFunding);
+            _topUp(needsFunding);
         }
     }
 
@@ -380,10 +392,10 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
      * @notice Sets the address of the ERC20 asset being traded.
      * @param _assetAddress The address of the ERC20 asset.
      **/
-    function setERC20AssetAddress(address _assetAddress) public onlyOwner {
+    function setERC20Asset(address _assetAddress) public onlyOwner {
         require(_assetAddress != address(0));
-        emit ERC20AssetAddressUpdated(ERC20AssetAddress, _assetAddress);
-        ERC20AssetAddress = _assetAddress;
+        emit ERC20AssetAddressUpdated(address(ERC20ASSET), _assetAddress);
+        ERC20ASSET = IERC20(_assetAddress);
     }
 
     /**
@@ -530,6 +542,10 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         return IERC20(_asset).allowance(address(this), address(_router));
     }
 
+    /**
+     * @notice Sets the address of the ERC20 LINK token.
+     * @param _erc20Link The address of the ERC20 LINK token.
+     **/
     function setERC20Link(address _erc20Link) external onlyOwner {
         require(_erc20Link != address(0));
         ERC20LINK = IERC20(_erc20Link);

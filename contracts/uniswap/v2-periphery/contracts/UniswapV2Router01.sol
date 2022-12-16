@@ -304,7 +304,7 @@ contract UniswapV2Router01 is IUniswapV2Router01 {
             amounts[amounts.length - 1] >= amountOutMin,
             "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
         );
-        console.log(UniswapV2Library.pairFor(factory, path[0], path[1]));
+
         TransferHelper.safeTransferFrom(
             path[0],
             msg.sender,
