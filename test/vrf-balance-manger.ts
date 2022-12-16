@@ -73,11 +73,15 @@ describe("VRF Balance Manager", function () {
     ]);
     await erc20WETHMock.approve(
       uniswapV2RouterMock.address,
-      ethers.utils.parseEther("100")
+      ethers.utils.parseEther("2000")
     );
     await linkTokenERC20.approve(
       uniswapV2RouterMock.address,
-      ethers.utils.parseEther("100")
+      ethers.utils.parseEther("2000")
+    );
+    await linkTokenERC677.approve(
+      uniswapV2RouterMock.address,
+      ethers.utils.parseEther("2000")
     );
     await uniswapV2RouterMock.addLiquidity(
       erc20WETHMock.address,
@@ -89,6 +93,7 @@ describe("VRF Balance Manager", function () {
       owner.address,
       Date.now() + 1000
     );
+
     vrfBalancer = await deploy("VRFBalancer", [
       linkTokenERC677.address,
       vrfCoordinatorV2Mock.address,
@@ -100,44 +105,44 @@ describe("VRF Balance Manager", function () {
     ]);
   });
 
-  describe("constructor", function () {
-    it("sets Pegswap variable if needed", async () => {
-      assert.equal(await vrfBalancer.needsPegswap(), false);
-    });
-  });
+  // describe("constructor", function () {
+  //   it("sets Pegswap variable if needed", async () => {
+  //     assert.equal(await vrfBalancer.needsPegswap(), false);
+  //   });
+  // });
 
-  describe("pause logic", function () {
-    it("can pause contract", async () => {
-      await vrfBalancer.pause();
-      assert.equal(await vrfBalancer.isPaused(), true);
-    });
-    it("can un-pause contract", async () => {
-      await vrfBalancer.pause();
-      await vrfBalancer.unpause();
-      assert.equal(await vrfBalancer.isPaused(), false);
-    });
-  });
+  // describe("pause logic", function () {
+  //   it("can pause contract", async () => {
+  //     await vrfBalancer.pause();
+  //     assert.equal(await vrfBalancer.isPaused(), true);
+  //   });
+  //   it("can un-pause contract", async () => {
+  //     await vrfBalancer.pause();
+  //     await vrfBalancer.unpause();
+  //     assert.equal(await vrfBalancer.isPaused(), false);
+  //   });
+  // });
 
-  describe("setLinkTokenAddress()", () => {
-    it("should emit LinkTokenAddressUpdated event when address is set successfully", async () => {
-      const result = await vrfBalancer.setLinkTokenAddress(
-        linkTokenERC677.address
-      );
-      expect(result).to.emit(vrfBalancer, "LinkTokenAddressUpdated");
-    });
-    it("should revert when address is 0", async () => {
-      const linkTokenAddress = "0x0000000000000000000000000000000000000000";
-      await expect(vrfBalancer.setLinkTokenAddress(linkTokenAddress)).to.be
-        .reverted;
-    });
-  });
+  // describe("setLinkTokenAddress()", () => {
+  //   it("should emit LinkTokenAddressUpdated event when address is set successfully", async () => {
+  //     const result = await vrfBalancer.setLinkTokenAddress(
+  //       linkTokenERC677.address
+  //     );
+  //     expect(result).to.emit(vrfBalancer, "LinkTokenAddressUpdated");
+  //   });
+  //   it("should revert when address is 0", async () => {
+  //     const linkTokenAddress = "0x0000000000000000000000000000000000000000";
+  //     await expect(vrfBalancer.setLinkTokenAddress(linkTokenAddress)).to.be
+  //       .reverted;
+  //   });
+  // });
 
-  describe("topUp()", () => {
-    it("should run top up coordinator subscriptions", async () => {});
-  });
+  // describe("topUp()", () => {
+  //   it("should run top up coordinator subscriptions", async () => {});
+  // });
 
   describe("dexSwap()", () => {
-    it("should swap tokens", async () => {
+    it("should swap erc20 tokens", async () => {
       await erc20WETHMock.transfer(
         vrfBalancer.address,
         ethers.utils.parseEther("5")
@@ -155,61 +160,137 @@ describe("VRF Balance Manager", function () {
         )
       ).to.emit(vrfBalancer, "DexSwapSuccess");
     });
+    it("should swap erc677 tokens", async () => {
+      await erc20WETHMock.transfer(
+        vrfBalancer.address,
+        ethers.utils.parseEther("5")
+      );
+      await vrfBalancer.approveAmount(
+        erc20WETHMock.address,
+        uniswapV2RouterMock.address,
+        ethers.utils.parseEther("100")
+      );
+      expect(
+        await vrfBalancer.dexSwap(
+          erc20WETHMock.address,
+          linkTokenERC677.address,
+          ethers.utils.parseEther("1")
+        )
+      ).to.emit(vrfBalancer, "DexSwapSuccess");
+    });
   });
 
-  describe("pegswap", function () {
-    it("gets pegswap router address", async () => {
-      await vrfBalancer.setPegSwapRouter(pegswapRouterMock.address);
-      assert(
-        (await vrfBalancer.getPegSwapRouter()) == pegswapRouterMock.address
+  // describe("pegswap", function () {
+  //   it("gets pegswap router address", async () => {
+  //     await vrfBalancer.setPegSwapRouter(pegswapRouterMock.address);
+  //     assert(
+  //       (await vrfBalancer.getPegSwapRouter()) == pegswapRouterMock.address
+  //     );
+  //   });
+  //   it("swap erc20 to erc677 LINK", async () => {
+  //     await vrfBalancer.setPegSwapRouter(pegswapRouterMock.address);
+  //     await vrfBalancer.setERC20Link(linkTokenERC20.address);
+  //     await linkTokenERC20.transfer(
+  //       vrfBalancer.address,
+  //       ethers.utils.parseEther("1")
+  //     );
+  //     await vrfBalancer.approveAmount(
+  //       linkTokenERC20.address,
+  //       pegswapRouterMock.address,
+  //       ethers.utils.parseEther("100")
+  //     );
+  //     await vrfBalancer.pegSwap();
+  //     const amount = await linkTokenERC677.balanceOf(vrfBalancer.address);
+  //     assert(ethers.utils.formatEther(amount) == "1.0");
+  //   });
+  // });
+
+  // describe("DEX integration", () => {
+  //   it("should swap tokens", async () => {
+  //     await erc20WETHMock.transfer(
+  //       vrfBalancer.address,
+  //       ethers.utils.parseEther("5")
+  //     );
+  //     await vrfBalancer.approveAmount(
+  //       erc20WETHMock.address,
+  //       uniswapV2RouterMock.address,
+  //       ethers.utils.parseEther("100")
+  //     );
+  //     expect(
+  //       await vrfBalancer.dexSwap(
+  //         erc20WETHMock.address,
+  //         linkTokenERC20.address,
+  //         ethers.utils.parseEther("1")
+  //       )
+  //     ).to.emit(vrfBalancer, "DexSwapSuccess");
+  //     await vrfBalancer.setPegSwapRouter(pegswapRouterMock.address);
+  //     await vrfBalancer.setERC20Link(linkTokenERC20.address);
+  //     await vrfBalancer.approveAmount(
+  //       linkTokenERC20.address,
+  //       pegswapRouterMock.address,
+  //       ethers.utils.parseEther("100")
+  //     );
+  //     await vrfBalancer.pegSwap();
+  //     const amount = await vrfBalancer.getAssetBalance(linkTokenERC677.address);
+  //     assert(ethers.utils.formatEther(amount) == "0.987158034397061298");
+  //   });
+  // });
+
+  // describe("set VRF subscription watcher", function () {
+  //   it("sets subId to watch", async () => {
+  //     const tx = await vrfCoordinatorV2Mock.createSubscription();
+  //     const txReceipt = await tx.wait(1);
+  //     const subscriptionId = txReceipt.events[0].args.subId;
+  //     await expect(
+  //       vrfBalancer.setWatchList(
+  //         [subscriptionId],
+  //         [ethers.utils.parseEther("1")],
+  //         [ethers.utils.parseEther("2")]
+  //       )
+  //     ).to.emit(vrfBalancer, "WatchListUpdated");
+  //   });
+  //   it("fails if odd array arguments", async () => {
+  //     const tx = await vrfCoordinatorV2Mock.createSubscription();
+  //     const txReceipt = await tx.wait(1);
+  //     const subscriptionId = txReceipt.events[0].args.subId;
+  //     await expect(
+  //       vrfBalancer.setWatchList(
+  //         [subscriptionId],
+  //         [ethers.utils.parseEther("1")],
+  //         []
+  //       )
+  //     ).to.be.revertedWithCustomError(vrfBalancer, "InvalidWatchList");
+  //   });
+  //   it("fails if top up amount <= min balance trigger", async () => {
+  //     const tx = await vrfCoordinatorV2Mock.createSubscription();
+  //     const txReceipt = await tx.wait(1);
+  //     const subscriptionId = txReceipt.events[0].args.subId;
+  //     await expect(
+  //       vrfBalancer.setWatchList(
+  //         [subscriptionId],
+  //         [ethers.utils.parseEther("1")],
+  //         [ethers.utils.parseEther("1")]
+  //       )
+  //     ).to.be.revertedWithCustomError(vrfBalancer, "InvalidWatchList");
+  //   });
+  // });
+
+  describe("check VRF subscription funds", function () {
+    it("returns a under funded subscription", async () => {
+      const tx = await vrfCoordinatorV2Mock.createSubscription();
+      const txReceipt = await tx.wait(1);
+      const subscriptionId = txReceipt.events[0].args.subId;
+      await vrfBalancer.setWatchList(
+        [subscriptionId],
+        [ethers.utils.parseEther("5")],
+        [ethers.utils.parseEther("6")]
       );
-    });
-    it("swap erc20 to erc677 LINK", async () => {
-      await vrfBalancer.setPegSwapRouter(pegswapRouterMock.address);
-      await vrfBalancer.setERC20Link(linkTokenERC20.address);
-      await linkTokenERC20.transfer(
-        vrfBalancer.address,
+      await vrfCoordinatorV2Mock.fundSubscription(
+        subscriptionId.toNumber(),
         ethers.utils.parseEther("1")
       );
-      await vrfBalancer.approveAmount(
-        linkTokenERC20.address,
-        pegswapRouterMock.address,
-        ethers.utils.parseEther("100")
-      );
-      await vrfBalancer.pegSwap();
-      const amount = await linkTokenERC677.balanceOf(vrfBalancer.address);
-      assert(ethers.utils.formatEther(amount) == "1.0");
-    });
-  });
-
-  describe("DEX integration", () => {
-    it("should swap tokens", async () => {
-      await erc20WETHMock.transfer(
-        vrfBalancer.address,
-        ethers.utils.parseEther("5")
-      );
-      await vrfBalancer.approveAmount(
-        erc20WETHMock.address,
-        uniswapV2RouterMock.address,
-        ethers.utils.parseEther("100")
-      );
-      expect(
-        await vrfBalancer.dexSwap(
-          erc20WETHMock.address,
-          linkTokenERC20.address,
-          ethers.utils.parseEther("1")
-        )
-      ).to.emit(vrfBalancer, "DexSwapSuccess");
-      await vrfBalancer.setPegSwapRouter(pegswapRouterMock.address);
-      await vrfBalancer.setERC20Link(linkTokenERC20.address);
-      await vrfBalancer.approveAmount(
-        linkTokenERC20.address,
-        pegswapRouterMock.address,
-        ethers.utils.parseEther("100")
-      );
-      await vrfBalancer.pegSwap();
-      const amount = await vrfBalancer.getAssetBalance(linkTokenERC677.address);
-      assert(ethers.utils.formatEther(amount) == "0.987158034397061298");
+      const needed = await vrfBalancer.getUnderFundedSubscriptions();
+      assert(needed.length == 1);
     });
   });
 
@@ -228,15 +309,68 @@ describe("VRF Balance Manager", function () {
       const { upkeepNeeded } = await vrfBalancer.callStatic.checkUpkeep("0x");
       assert(!upkeepNeeded);
     });
+    it("returns true if a vrf subscription is under funded", async () => {
+      const tx = await vrfCoordinatorV2Mock.createSubscription();
+      const txReceipt = await tx.wait(1);
+      const subscriptionId = txReceipt.events[0].args.subId;
+      await vrfBalancer.setWatchList(
+        [subscriptionId],
+        [ethers.utils.parseEther("5")],
+        [ethers.utils.parseEther("6")]
+      );
+      await vrfCoordinatorV2Mock.fundSubscription(
+        subscriptionId.toNumber(),
+        ethers.utils.parseEther("1")
+      );
+      await network.provider.send("evm_increaseTime", [1]);
+      await network.provider.request({ method: "evm_mine", params: [] });
+      const { upkeepNeeded } = await vrfBalancer.callStatic.checkUpkeep("0x");
+      assert(upkeepNeeded);
+    });
   });
 
   describe("performUpkeep", function () {
     it("can only run if checkupkeep is true", async () => {
       await vrfBalancer.setKeeperRegistryAddress(owner.address);
+      const tx = await vrfCoordinatorV2Mock.createSubscription();
+      const txReceipt = await tx.wait(1);
+      const subscriptionId = txReceipt.events[0].args.subId;
+      await vrfBalancer.setWatchList(
+        [subscriptionId],
+        [ethers.utils.parseEther("5")],
+        [ethers.utils.parseEther("6")]
+      );
+      await vrfCoordinatorV2Mock.fundSubscription(
+        subscriptionId.toNumber(),
+        ethers.utils.parseEther("1")
+      );
       await network.provider.send("evm_increaseTime", [1]);
       await network.provider.request({ method: "evm_mine", params: [] });
-      // const tx = await vrfBalancer.performUpkeep("0x");
-      // assert(tx);
+      const { upkeepNeeded, performData } =
+        await vrfBalancer.callStatic.checkUpkeep("0x");
+
+      await network.provider.send("evm_increaseTime", [1]);
+      await network.provider.request({ method: "evm_mine", params: [] });
+      await erc20WETHMock.transfer(
+        vrfBalancer.address,
+        ethers.utils.parseEther("10")
+      );
+      await vrfBalancer.approveAmount(
+        erc20WETHMock.address,
+        uniswapV2RouterMock.address,
+        ethers.utils.parseEther("10")
+      );
+      await uniswapV2RouterMock.addLiquidity(
+        erc20WETHMock.address,
+        linkTokenERC677.address,
+        ethers.utils.parseEther("100"),
+        ethers.utils.parseEther("100"),
+        0,
+        0,
+        owner.address,
+        Date.now() + 1000
+      );
+      await vrfBalancer.performUpkeep(performData);
     });
   });
 });

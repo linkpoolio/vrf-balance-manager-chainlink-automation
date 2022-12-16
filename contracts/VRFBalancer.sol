@@ -45,8 +45,8 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
 
     struct Target {
         bool isActive;
-        uint96 minBalanceJuels;
-        uint96 topUpAmountJuels;
+        uint256 minBalance;
+        uint256 topUpAmount;
         uint56 lastTopUpTimestamp;
     }
 
@@ -81,6 +81,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     );
     event PegSwapSuccess(uint256 amount, address from, address to);
     event DexSwapSuccess(uint256 amount, address from, address to);
+    event WatchListUpdated(uint64[] oldSubs, uint64[] newSubs);
 
     // Errors
 
@@ -124,14 +125,21 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         setERC20AssetAddress(_erc20Asset);
     }
 
+    /**
+     * @notice Sets the VRF subscriptions to watch for, along with min balnces and topup amounts.
+     * @param _subscriptionIds The subscription IDs to watch.
+     * @param _minBalances The minimum balances to maintain for each subscription.
+     * @param _topUpAmounts The amount to top up each subscription by when it falls below the minimum.
+     * @dev The arrays must be the same length.
+     */
     function setWatchList(
-        uint64[] calldata subscriptionIds,
-        uint96[] calldata minBalancesJuels,
-        uint96[] calldata topUpAmountsJuels
+        uint64[] calldata _subscriptionIds,
+        uint256[] calldata _minBalances,
+        uint256[] calldata _topUpAmounts
     ) external onlyOwner {
         if (
-            subscriptionIds.length != minBalancesJuels.length ||
-            subscriptionIds.length != topUpAmountsJuels.length
+            _subscriptionIds.length != _minBalances.length ||
+            _subscriptionIds.length != _topUpAmounts.length
         ) {
             revert InvalidWatchList();
         }
@@ -139,31 +147,40 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         for (uint256 idx = 0; idx < oldWatchList.length; idx++) {
             s_targets[oldWatchList[idx]].isActive = false;
         }
-        for (uint256 idx = 0; idx < subscriptionIds.length; idx++) {
-            if (s_targets[subscriptionIds[idx]].isActive) {
-                revert DuplicateSubcriptionId(subscriptionIds[idx]);
+        for (uint256 idx = 0; idx < _subscriptionIds.length; idx++) {
+            if (s_targets[_subscriptionIds[idx]].isActive) {
+                revert DuplicateSubcriptionId(_subscriptionIds[idx]);
             }
-            if (subscriptionIds[idx] == 0) {
+            if (_subscriptionIds[idx] == 0) {
                 revert InvalidWatchList();
             }
-            if (topUpAmountsJuels[idx] == 0) {
+            if (_topUpAmounts[idx] == 0) {
                 revert InvalidWatchList();
             }
-            if (topUpAmountsJuels[idx] <= minBalancesJuels[idx]) {
+            if (_topUpAmounts[idx] <= _minBalances[idx]) {
                 revert InvalidWatchList();
             }
-            s_targets[subscriptionIds[idx]] = Target({
+            s_targets[_subscriptionIds[idx]] = Target({
                 isActive: true,
-                minBalanceJuels: minBalancesJuels[idx],
-                topUpAmountJuels: topUpAmountsJuels[idx],
+                minBalance: _minBalances[idx],
+                topUpAmount: _topUpAmounts[idx],
                 lastTopUpTimestamp: 0
             });
         }
-        s_watchList = subscriptionIds;
+        s_watchList = _subscriptionIds;
+        emit WatchListUpdated(oldWatchList, _subscriptionIds);
     }
 
-    function getUnderfundedSubscriptions()
-        public
+    function getUnderFundedSubscriptions()
+        external
+        view
+        returns (uint64[] memory)
+    {
+        return _getUnderfundedSubscriptions();
+    }
+
+    function _getUnderfundedSubscriptions()
+        internal
         view
         returns (uint64[] memory)
     {
@@ -171,27 +188,22 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         uint64[] memory needsFunding = new uint64[](watchList.length);
         uint256 count = 0;
         uint256 minWaitPeriod = minWaitPeriodSeconds;
-        uint256 contractBalance = ERC677LINK.balanceOf(address(this));
         Target memory target;
         for (uint256 idx = 0; idx < watchList.length; idx++) {
             target = s_targets[watchList[idx]];
             (uint96 subscriptionBalance, , , ) = COORDINATOR.getSubscription(
                 watchList[idx]
             );
+
             if (
                 target.lastTopUpTimestamp + minWaitPeriod <= block.timestamp &&
-                subscriptionBalance < target.minBalanceJuels
+                subscriptionBalance < target.minBalance
             ) {
                 needsFunding[count] = watchList[idx];
                 count++;
-                contractBalance -= target.topUpAmountJuels;
             }
         }
-        if (count != watchList.length) {
-            assembly {
-                mstore(needsFunding, count)
-            }
-        }
+
         return needsFunding;
     }
 
@@ -208,12 +220,12 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
                 target.isActive &&
                 target.lastTopUpTimestamp + _minWaitPeriodSeconds <=
                 block.timestamp &&
-                subscriptionBalance < target.minBalanceJuels &&
-                contractBalance >= target.topUpAmountJuels
+                subscriptionBalance < target.minBalance &&
+                contractBalance >= target.topUpAmount
             ) {
                 bool success = ERC677LINK.transferAndCall(
                     address(COORDINATOR),
-                    target.topUpAmountJuels,
+                    target.topUpAmount,
                     abi.encode(needsFunding[idx])
                 );
                 if (success) {
@@ -240,7 +252,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         whenNotPaused
         returns (bool upkeepNeeded, bytes memory performData)
     {
-        uint64[] memory needsFunding = getUnderfundedSubscriptions();
+        uint64[] memory needsFunding = _getUnderfundedSubscriptions();
         upkeepNeeded = needsFunding.length > 0;
         performData = abi.encode(needsFunding);
         return (upkeepNeeded, performData);
