@@ -27,7 +27,6 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     uint256 public minWaitPeriodSeconds;
     address public dexAddress;
     uint256 contractLINKMinBalance;
-    address public ERC20AssetAddress;
     uint64[] private s_watchList;
     uint256 private constant MIN_GAS_FOR_TRANSFER = 55_000;
 
@@ -45,8 +44,8 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
 
     struct Target {
         bool isActive;
-        uint96 minBalanceJuels;
-        uint96 topUpAmountJuels;
+        uint256 minBalance;
+        uint256 topUpAmount;
         uint56 lastTopUpTimestamp;
     }
 
@@ -81,6 +80,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     );
     event PegSwapSuccess(uint256 amount, address from, address to);
     event DexSwapSuccess(uint256 amount, address from, address to);
+    event WatchListUpdated(uint64[] oldSubs, uint64[] newSubs);
 
     // Errors
 
@@ -121,17 +121,24 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         setMinWaitPeriodSeconds(_minWaitPeriodSeconds);
         setDEXAddress(_dexAddress);
         setContractLINKMinBalance(_linkContractBalance);
-        setERC20AssetAddress(_erc20Asset);
+        setERC20Asset(_erc20Asset);
     }
 
+    /**
+     * @notice Sets the VRF subscriptions to watch for, along with min balnces and topup amounts.
+     * @param _subscriptionIds The subscription IDs to watch.
+     * @param _minBalances The minimum balances to maintain for each subscription.
+     * @param _topUpAmounts The amount to top up each subscription by when it falls below the minimum.
+     * @dev The arrays must be the same length.
+     */
     function setWatchList(
-        uint64[] calldata subscriptionIds,
-        uint96[] calldata minBalancesJuels,
-        uint96[] calldata topUpAmountsJuels
+        uint64[] calldata _subscriptionIds,
+        uint256[] calldata _minBalances,
+        uint256[] calldata _topUpAmounts
     ) external onlyOwner {
         if (
-            subscriptionIds.length != minBalancesJuels.length ||
-            subscriptionIds.length != topUpAmountsJuels.length
+            _subscriptionIds.length != _minBalances.length ||
+            _subscriptionIds.length != _topUpAmounts.length
         ) {
             revert InvalidWatchList();
         }
@@ -139,31 +146,44 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         for (uint256 idx = 0; idx < oldWatchList.length; idx++) {
             s_targets[oldWatchList[idx]].isActive = false;
         }
-        for (uint256 idx = 0; idx < subscriptionIds.length; idx++) {
-            if (s_targets[subscriptionIds[idx]].isActive) {
-                revert DuplicateSubcriptionId(subscriptionIds[idx]);
+        for (uint256 idx = 0; idx < _subscriptionIds.length; idx++) {
+            if (s_targets[_subscriptionIds[idx]].isActive) {
+                revert DuplicateSubcriptionId(_subscriptionIds[idx]);
             }
-            if (subscriptionIds[idx] == 0) {
+            if (_subscriptionIds[idx] == 0) {
                 revert InvalidWatchList();
             }
-            if (topUpAmountsJuels[idx] == 0) {
+            if (_topUpAmounts[idx] == 0) {
                 revert InvalidWatchList();
             }
-            if (topUpAmountsJuels[idx] <= minBalancesJuels[idx]) {
+            if (_topUpAmounts[idx] <= _minBalances[idx]) {
                 revert InvalidWatchList();
             }
-            s_targets[subscriptionIds[idx]] = Target({
+            s_targets[_subscriptionIds[idx]] = Target({
                 isActive: true,
-                minBalanceJuels: minBalancesJuels[idx],
-                topUpAmountJuels: topUpAmountsJuels[idx],
+                minBalance: _minBalances[idx],
+                topUpAmount: _topUpAmounts[idx],
                 lastTopUpTimestamp: 0
             });
         }
-        s_watchList = subscriptionIds;
+        s_watchList = _subscriptionIds;
+        emit WatchListUpdated(oldWatchList, _subscriptionIds);
     }
 
-    function getUnderfundedSubscriptions()
-        public
+    function getUnderFundedSubscriptions()
+        external
+        view
+        returns (uint64[] memory)
+    {
+        return _getUnderfundedSubscriptions();
+    }
+
+    /**
+     * @notice Collects the underfunded subscriptions based on user parameters.
+     * @return The subscription IDs that are underfunded.
+     */
+    function _getUnderfundedSubscriptions()
+        internal
         view
         returns (uint64[] memory)
     {
@@ -171,58 +191,64 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         uint64[] memory needsFunding = new uint64[](watchList.length);
         uint256 count = 0;
         uint256 minWaitPeriod = minWaitPeriodSeconds;
-        uint256 contractBalance = ERC677LINK.balanceOf(address(this));
         Target memory target;
         for (uint256 idx = 0; idx < watchList.length; idx++) {
             target = s_targets[watchList[idx]];
             (uint96 subscriptionBalance, , , ) = COORDINATOR.getSubscription(
                 watchList[idx]
             );
+
             if (
                 target.lastTopUpTimestamp + minWaitPeriod <= block.timestamp &&
-                subscriptionBalance < target.minBalanceJuels
+                subscriptionBalance < target.minBalance
             ) {
                 needsFunding[count] = watchList[idx];
                 count++;
-                contractBalance -= target.topUpAmountJuels;
             }
         }
-        if (count != watchList.length) {
-            assembly {
-                mstore(needsFunding, count)
-            }
-        }
+
         return needsFunding;
     }
 
-    function topUp(uint64[] memory needsFunding) public whenNotPaused {
+    function topUp(uint64[] memory needsFunding) external onlyOwner {
+        _topUp(needsFunding);
+    }
+
+    /**
+     * @notice Top up the specified subscriptions if they are underfunded.
+     * @param _needsFunding The subscriptions to top up.
+     * @dev This function is called by the KeeperRegistry contract.
+     * @dev Checks that the subscription is active, has not been topped up recently, and is underfunded.
+     */
+    function _topUp(uint64[] memory _needsFunding) internal whenNotPaused {
         uint256 _minWaitPeriodSeconds = minWaitPeriodSeconds;
         uint256 contractBalance = ERC677LINK.balanceOf(address(this));
         Target memory target;
-        for (uint256 idx = 0; idx < needsFunding.length; idx++) {
-            target = s_targets[needsFunding[idx]];
+        for (uint256 idx = 0; idx < _needsFunding.length; idx++) {
+            target = s_targets[_needsFunding[idx]];
             (uint96 subscriptionBalance, , , ) = COORDINATOR.getSubscription(
-                needsFunding[idx]
+                _needsFunding[idx]
             );
             if (
                 target.isActive &&
                 target.lastTopUpTimestamp + _minWaitPeriodSeconds <=
                 block.timestamp &&
-                subscriptionBalance < target.minBalanceJuels &&
-                contractBalance >= target.topUpAmountJuels
+                subscriptionBalance < target.minBalance &&
+                contractBalance >= target.topUpAmount
             ) {
                 bool success = ERC677LINK.transferAndCall(
                     address(COORDINATOR),
-                    target.topUpAmountJuels,
-                    abi.encode(needsFunding[idx])
+                    target.topUpAmount,
+                    abi.encode(_needsFunding[idx])
                 );
+
                 if (success) {
-                    s_targets[needsFunding[idx]].lastTopUpTimestamp = uint56(
+                    s_targets[_needsFunding[idx]].lastTopUpTimestamp = uint56(
                         block.timestamp
                     );
-                    emit TopUpSucceeded(needsFunding[idx]);
+                    emit TopUpSucceeded(_needsFunding[idx]);
                 } else {
-                    emit TopUpFailed(needsFunding[idx]);
+                    emit TopUpFailed(_needsFunding[idx]);
                 }
             }
             if (gasleft() < MIN_GAS_FOR_TRANSFER) {
@@ -240,7 +266,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         whenNotPaused
         returns (bool upkeepNeeded, bytes memory performData)
     {
-        uint64[] memory needsFunding = getUnderfundedSubscriptions();
+        uint64[] memory needsFunding = _getUnderfundedSubscriptions();
         upkeepNeeded = needsFunding.length > 0;
         performData = abi.encode(needsFunding);
         return (upkeepNeeded, performData);
@@ -254,7 +280,6 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     {
         uint64[] memory needsFunding = abi.decode(performData, (uint64[]));
         if (needsFunding.length > 0) {
-            // swap asset for LINK
             if (needsPegswap) {
                 _dexSwap(
                     address(ERC20ASSET),
@@ -269,8 +294,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
                     ERC20ASSET.balanceOf(address(this))
                 );
             }
-            // top up subscriptions
-            topUp(needsFunding);
+            _topUp(needsFunding);
         }
     }
 
@@ -368,10 +392,10 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
      * @notice Sets the address of the ERC20 asset being traded.
      * @param _assetAddress The address of the ERC20 asset.
      **/
-    function setERC20AssetAddress(address _assetAddress) public onlyOwner {
+    function setERC20Asset(address _assetAddress) public onlyOwner {
         require(_assetAddress != address(0));
-        emit ERC20AssetAddressUpdated(ERC20AssetAddress, _assetAddress);
-        ERC20AssetAddress = _assetAddress;
+        emit ERC20AssetAddressUpdated(address(ERC20ASSET), _assetAddress);
+        ERC20ASSET = IERC20(_assetAddress);
     }
 
     /**
@@ -518,6 +542,10 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         return IERC20(_asset).allowance(address(this), address(_router));
     }
 
+    /**
+     * @notice Sets the address of the ERC20 LINK token.
+     * @param _erc20Link The address of the ERC20 LINK token.
+     **/
     function setERC20Link(address _erc20Link) external onlyOwner {
         require(_erc20Link != address(0));
         ERC20LINK = IERC20(_erc20Link);

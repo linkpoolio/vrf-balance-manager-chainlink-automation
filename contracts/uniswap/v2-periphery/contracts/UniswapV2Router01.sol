@@ -7,6 +7,7 @@ import "./libraries/UniswapV2Library.sol";
 import "./interfaces/IUniswapV2Router01.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IWETH.sol";
+import "hardhat/console.sol";
 
 contract UniswapV2Router01 is IUniswapV2Router01 {
     address public immutable override factory;
@@ -303,6 +304,7 @@ contract UniswapV2Router01 is IUniswapV2Router01 {
             amounts[amounts.length - 1] >= amountOutMin,
             "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT"
         );
+
         TransferHelper.safeTransferFrom(
             path[0],
             msg.sender,
