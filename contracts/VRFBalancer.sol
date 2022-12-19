@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "../contracts/interfaces/PegswapInterface.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+
 // import "hardhat/console.sol";
 
 /**
@@ -26,7 +27,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     address public keeperRegistryAddress;
     uint256 public minWaitPeriodSeconds;
     uint256 contractLINKMinBalance;
-    uint64[] private s_watchList;
+    uint64[] private watchList;
     uint256 private constant MIN_GAS_FOR_TRANSFER = 55_000;
 
     bool public needsPegswap;
@@ -141,7 +142,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         ) {
             revert InvalidWatchList();
         }
-        uint64[] memory oldWatchList = s_watchList;
+        uint64[] memory oldWatchList = watchList;
         for (uint256 idx = 0; idx < oldWatchList.length; idx++) {
             s_targets[oldWatchList[idx]].isActive = false;
         }
@@ -165,7 +166,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
                 lastTopUpTimestamp: 0
             });
         }
-        s_watchList = subscriptionIds;
+        watchList = subscriptionIds;
         emit WatchListUpdated(oldWatchList, subscriptionIds);
     }
 
@@ -186,22 +187,22 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         view
         returns (uint64[] memory)
     {
-        uint64[] memory watchList = s_watchList;
-        uint64[] memory needsFunding = new uint64[](watchList.length);
+        uint64[] memory currentWatchList = watchList;
+        uint64[] memory needsFunding = new uint64[](currentWatchList.length);
         uint256 count = 0;
         uint256 minWaitPeriod = minWaitPeriodSeconds;
         Target memory target;
-        for (uint256 idx = 0; idx < watchList.length; idx++) {
-            target = s_targets[watchList[idx]];
+        for (uint256 idx = 0; idx < currentWatchList.length; idx++) {
+            target = s_targets[currentWatchList[idx]];
             (uint96 subscriptionBalance, , , ) = COORDINATOR.getSubscription(
-                watchList[idx]
+                currentWatchList[idx]
             );
 
             if (
                 target.lastTopUpTimestamp + minWaitPeriod <= block.timestamp &&
                 subscriptionBalance < target.minBalance
             ) {
-                needsFunding[count] = watchList[idx];
+                needsFunding[count] = currentWatchList[idx];
                 count++;
             }
         }
@@ -317,15 +318,9 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
      * @notice Sets the keeper registry address.
      * @param keeperAddress The address of the keeper registry.
      */
-    function setKeeperRegistryAddress(address keeperAddress)
-        public
-        onlyOwner
-    {
+    function setKeeperRegistryAddress(address keeperAddress) public onlyOwner {
         require(keeperAddress != address(0));
-        emit KeeperRegistryAddressUpdated(
-            keeperRegistryAddress,
-            keeperAddress
-        );
+        emit KeeperRegistryAddressUpdated(keeperRegistryAddress, keeperAddress);
         keeperRegistryAddress = keeperAddress;
     }
 
@@ -349,10 +344,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
             erc677Link = LinkTokenInterface(linkTokenAddress);
             emit LinkTokenAddressUpdated(address(erc20Link), linkTokenAddress);
         } else {
-            emit LinkTokenAddressUpdated(
-                address(erc677Link),
-                linkTokenAddress
-            );
+            emit LinkTokenAddressUpdated(address(erc677Link), linkTokenAddress);
             erc677Link = LinkTokenInterface(linkTokenAddress);
         }
     }
@@ -434,7 +426,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     {
         require(payee != address(0));
         emit FundsWithdrawn(amount, payee);
-       (bool ok) = erc677Link.transfer(payee, amount);
+        bool ok = erc677Link.transfer(payee, amount);
         require(ok, "LINK transfer failed");
     }
 
@@ -525,7 +517,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         address to,
         uint256 amount
     ) external onlyOwner {
-        (bool ok) = IERC20(token).approve(to, amount);
+        bool ok = IERC20(token).approve(to, amount);
         require(ok, "ERC20: approve failed");
     }
 
