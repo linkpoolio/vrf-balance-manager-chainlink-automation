@@ -31,9 +31,9 @@ const config: HardhatUserConfig = {
     hardhat: {
       gas: 30000000,
       // comment out forking to run tests on a local chain
-      forking: {
-        url: BINANCE_RPC_URL,
-      },
+      // forking: {
+      //   url: BINANCE_RPC_URL,
+      // },
     },
   },
 };
