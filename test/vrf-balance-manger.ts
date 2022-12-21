@@ -441,4 +441,30 @@ describe("VRF Balance Manager", function () {
         .withArgs(subscriptionId);
     });
   });
+  describe("withdraw funds", function () {
+    it("can withdraw erc20 asset from contract", async () => {
+      await erc20WETHMock.transfer(
+        vrfBalancer.address,
+        ethers.utils.parseEther("10")
+      );
+      const before = await erc20WETHMock.balanceOf(owner.address);
+      await vrfBalancer.withdrawAsset(erc20WETHMock.address);
+      const after = await erc20WETHMock.balanceOf(owner.address);
+      assert(
+        after.sub(before).toString() == ethers.utils.parseEther("10").toString()
+      );
+    });
+    it("can withdraw erc677 asset from contract", async () => {
+      await linkTokenERC677.transfer(
+        vrfBalancer.address,
+        ethers.utils.parseEther("10")
+      );
+      const before = await linkTokenERC677.balanceOf(owner.address);
+      await vrfBalancer.withdrawAsset(linkTokenERC677.address);
+      const after = await linkTokenERC677.balanceOf(owner.address);
+      assert(
+        after.sub(before).toString() == ethers.utils.parseEther("10").toString()
+      );
+    });
+  });
 });
