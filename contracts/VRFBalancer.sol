@@ -9,8 +9,6 @@ import "../contracts/interfaces/PegswapInterface.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
-// import "hardhat/console.sol";
-
 /**
  * @title VRFBalancer
  * @notice Creates automation for vrf subscriptions
