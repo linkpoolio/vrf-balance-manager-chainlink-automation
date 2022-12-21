@@ -12,7 +12,7 @@ import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 /**
  * @title VRFBalancer
  * @notice Creates automation for vrf subscriptions
- * @dev The _linkTokenAddress in constructor is the ERC677 LINK token address of the network
+ * @dev The linkTokenAddress in constructor is the ERC677 LINK token address of the network
  */
 contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     VRFCoordinatorV2Interface public COORDINATOR;
@@ -27,18 +27,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     uint256 contractLINKMinBalance;
     uint64[] private watchList;
     uint256 private constant MIN_GAS_FOR_TRANSFER = 55_000;
-
     bool public needsPegswap;
-
-    // LINK addresses by network ID
-    address private constant BNB_LINK_ERC677 =
-        0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
-    address private constant BNB_LINK_ERC20 =
-        0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD;
-    address private constant POLYGON_LINK_ERC20 =
-        0x53E0bca35eC356BD5ddDFebbD1Fc0fD03FaBad39;
-    address private constant POLYGON_LINK_ERC677 =
-        0xb0897686c545045aFc77CF20eC7A532E3120E0F1;
 
     struct Target {
         bool isActive;
@@ -58,7 +47,6 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         address oldAddress,
         address newAddress
     );
-    event LinkTokenAddressUpdated(address oldAddress, address newAddress);
     event MinWaitPeriodUpdated(
         uint256 oldMinWaitPeriod,
         uint256 newMinWaitPeriod
@@ -104,7 +92,8 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     }
 
     constructor(
-        address linkTokenAddress,
+        address erc677linkTokenAddress,
+        address erc20linkTokenAddress,
         address coordinatorAddress,
         address keeperAddress,
         uint256 minPeriodSeconds,
@@ -113,7 +102,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         address erc20AssetAddress
     ) {
         owner = msg.sender;
-        setLinkTokenAddress(linkTokenAddress);
+        setLinkTokenAddresses(erc677linkTokenAddress, erc20linkTokenAddress);
         setVRFCoordinatorV2Address(coordinatorAddress);
         setKeeperRegistryAddress(keeperAddress);
         setMinWaitPeriodSeconds(minPeriodSeconds);
@@ -324,26 +313,19 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
 
     /**
      * @notice Sets the LINK token address.
-     * @param linkTokenAddress The address of the LINK token.
+     * @param erc677Address The address of the ERC677 LINK token.
      */
-    function setLinkTokenAddress(address linkTokenAddress) public onlyOwner {
-        require(linkTokenAddress != address(0));
-        if (
-            linkTokenAddress == BNB_LINK_ERC677 ||
-            linkTokenAddress == POLYGON_LINK_ERC677
-        ) {
+    function setLinkTokenAddresses(address erc677Address, address erc20Address)
+        public
+        onlyOwner
+    {
+        require(erc677Address != address(0), "ERC677 address cannot be 0");
+        if (erc20Address != address(0)) {
             needsPegswap = true;
-            if (linkTokenAddress == BNB_LINK_ERC677) {
-                erc20Link = IERC20(BNB_LINK_ERC20);
-            } else {
-                erc20Link = IERC20(POLYGON_LINK_ERC20);
-            }
-
-            erc677Link = LinkTokenInterface(linkTokenAddress);
-            emit LinkTokenAddressUpdated(address(erc20Link), linkTokenAddress);
+            erc20Link = IERC20(erc20Address);
+            erc677Link = LinkTokenInterface(erc677Address);
         } else {
-            emit LinkTokenAddressUpdated(address(erc677Link), linkTokenAddress);
-            erc677Link = LinkTokenInterface(linkTokenAddress);
+            erc677Link = LinkTokenInterface(erc677Address);
         }
     }
 

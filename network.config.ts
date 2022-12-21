@@ -4,6 +4,7 @@ export const networkConfig: { [key: number]: any } = {
   31337: {
     name: "hardhat",
     linkTokenERC677: "0x404460C6A5EdE2D891e8297795264fDe62ADBB75",
+    linkTokenERC20: "0x404460C6A5EdE2D891e8297795264fDe62ADBB75",
     vrfCoordinatorV2: "0xc587d9053cd1118f25F645F9E08BB98c9712A4EE",
     keepersRegistry: "0xc587d9053cd1118f25F645F9E08BB98c9712A4EE",
     minWaitPeriodSeconds: 1,
@@ -34,6 +35,7 @@ export const networkConfig: { [key: number]: any } = {
   56: {
     name: "binance-mainnet",
     linkTokenERC677: "0x404460C6A5EdE2D891e8297795264fDe62ADBB75",
+    linkTokenERC20: "0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD",
     vrfCoordinatorV2: "0xc587d9053cd1118f25F645F9E08BB98c9712A4EE",
     keepersRegistry: "",
     minWaitPeriodSeconds: 1,
@@ -44,6 +46,7 @@ export const networkConfig: { [key: number]: any } = {
   137: {
     name: "polygon-mainnet",
     linkTokenERC677: "0xb0897686c545045aFc77CF20eC7A532E3120E0F1",
+    linkTokenERC20: "0x53E0bca35eC356BD5ddDFebbD1Fc0fD03FaBad39",
     vrfCoordinatorV2: "0xAE975071Be8F8eE67addBC1A82488F1C24858067",
     keepersRegistry: "0x6179B349067af80D0c171f43E6d767E4A00775Cd",
     minWaitPeriodSeconds: 1,

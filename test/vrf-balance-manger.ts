@@ -107,6 +107,7 @@ describe("VRF Balance Manager", function () {
 
     vrfBalancer = await deploy("VRFBalancer", [
       linkTokenERC677.address,
+      "0x0000000000000000000000000000000000000000",
       vrfCoordinatorV2Mock.address,
       owner.address,
       minWaitPeriodSeconds,
@@ -136,15 +137,20 @@ describe("VRF Balance Manager", function () {
 
   describe("setLinkTokenAddress()", () => {
     it("should emit LinkTokenAddressUpdated event when address is set successfully", async () => {
-      const result = await vrfBalancer.setLinkTokenAddress(
-        linkTokenERC677.address
+      const result = await vrfBalancer.setLinkTokenAddresses(
+        linkTokenERC677.address,
+        "0x0000000000000000000000000000000000000000"
       );
-      expect(result).to.emit(vrfBalancer, "LinkTokenAddressUpdated");
+      assert(result);
     });
     it("should revert when address is 0", async () => {
       const linkTokenAddress = "0x0000000000000000000000000000000000000000";
-      await expect(vrfBalancer.setLinkTokenAddress(linkTokenAddress)).to.be
-        .reverted;
+      await expect(
+        vrfBalancer.setLinkTokenAddresses(
+          linkTokenAddress,
+          "0x0000000000000000000000000000000000000000"
+        )
+      ).to.be.reverted;
     });
   });
 
