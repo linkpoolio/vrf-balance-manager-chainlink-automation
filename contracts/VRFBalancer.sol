@@ -541,4 +541,15 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         require(newAddress != address(0));
         erc20Link = IERC20(newAddress);
     }
+
+    /**
+     * @notice Withdraw token assets.
+     * @param asset The address of the token to withdraw.
+     **/
+    function withdrawAsset(address asset) external onlyOwner {
+        uint256 balance = IERC20(asset).balanceOf(address(this));
+        require(balance > 0, "Nothing to withdraw");
+        bool ok = IERC20(asset).transfer(msg.sender, balance);
+        require(ok, "token transfer failed");
+    }
 }
