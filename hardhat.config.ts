@@ -4,7 +4,9 @@ require("dotenv").config();
 
 const MAINNET_RPC_URL = process.env.MAINNET_RPC_URL as string;
 const GOERLI_RPC_URL = process.env.MAINNET_RPC_URL as string;
-const BINANCE_RPC_URL = process.env.BINANCE_RPC_URL as string;
+const BINANCE_MAINNET_RPC_URL = process.env.BINANCE_MAINNET_RPC_URL as string;
+const POLYGON_MAINNET_RPC_URL = process.env.POLYGON_MAINNET_RPC_URL as string;
+const PRIVATE_KEY = (process.env.PRIVATE_KEY as string) || "0x";
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -30,10 +32,31 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       gas: 30000000,
+      chainId: 31337,
       // comment out forking to run tests on a local chain
       // forking: {
       //   url: BINANCE_RPC_URL,
       // },
+    },
+    mainnet: {
+      url: MAINNET_RPC_URL,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
+      chainId: 1,
+    },
+    goerli: {
+      url: GOERLI_RPC_URL,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
+      chainId: 5,
+    },
+    polygon: {
+      url: POLYGON_MAINNET_RPC_URL,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
+      chainId: 137,
+    },
+    binance: {
+      url: BINANCE_MAINNET_RPC_URL,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
+      chainId: 56,
     },
   },
 };

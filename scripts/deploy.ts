@@ -5,6 +5,9 @@ import { deploy } from "../test/utils/helpers";
 async function main() {
   const chainId =
     network.config.chainId != undefined ? network.config.chainId : 31337;
+  if (chainId == 31337) {
+    return;
+  }
   const networkName = {
     name: networkConfig[chainId].name,
     keepersUpdateInterval: networkConfig[chainId].keepersUpdateInterval,
