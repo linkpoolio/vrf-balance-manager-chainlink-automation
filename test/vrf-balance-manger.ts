@@ -164,11 +164,6 @@ describe("VRF Balance Manager", function () {
         vrfBalancer.address,
         ethers.utils.parseEther("5")
       );
-      await vrfBalancer.approveAmount(
-        erc20WETHMock.address,
-        uniswapV2RouterMock.address,
-        ethers.utils.parseEther("100")
-      );
       expect(
         await vrfBalancer.dexSwap(
           erc20WETHMock.address,
@@ -181,11 +176,6 @@ describe("VRF Balance Manager", function () {
       await erc20WETHMock.transfer(
         vrfBalancer.address,
         ethers.utils.parseEther("5")
-      );
-      await vrfBalancer.approveAmount(
-        erc20WETHMock.address,
-        uniswapV2RouterMock.address,
-        ethers.utils.parseEther("100")
       );
       expect(
         await vrfBalancer.dexSwap(
@@ -211,11 +201,6 @@ describe("VRF Balance Manager", function () {
         vrfBalancer.address,
         ethers.utils.parseEther("1")
       );
-      await vrfBalancer.approveAmount(
-        linkTokenERC20.address,
-        pegswapRouterMock.address,
-        ethers.utils.parseEther("100")
-      );
       await vrfBalancer.pegSwap();
       const amount = await linkTokenERC677.balanceOf(vrfBalancer.address);
       assert(ethers.utils.formatEther(amount) == "1.0");
@@ -228,11 +213,6 @@ describe("VRF Balance Manager", function () {
         vrfBalancer.address,
         ethers.utils.parseEther("5")
       );
-      await vrfBalancer.approveAmount(
-        erc20WETHMock.address,
-        uniswapV2RouterMock.address,
-        ethers.utils.parseEther("100")
-      );
       expect(
         await vrfBalancer.dexSwap(
           erc20WETHMock.address,
@@ -242,11 +222,6 @@ describe("VRF Balance Manager", function () {
       ).to.emit(vrfBalancer, "DexSwapSuccess");
       await vrfBalancer.setPegSwapRouter(pegswapRouterMock.address);
       await vrfBalancer.setERC20Link(linkTokenERC20.address);
-      await vrfBalancer.approveAmount(
-        linkTokenERC20.address,
-        pegswapRouterMock.address,
-        ethers.utils.parseEther("100")
-      );
       await vrfBalancer.pegSwap();
       const amount = await vrfBalancer.getAssetBalance(linkTokenERC677.address);
       assert(ethers.utils.formatEther(amount) == "0.987158034397061298");
@@ -397,11 +372,6 @@ describe("VRF Balance Manager", function () {
         vrfBalancer.address,
         ethers.utils.parseEther("10")
       );
-      await vrfBalancer.approveAmount(
-        erc20WETHMock.address,
-        uniswapV2RouterMock.address,
-        ethers.utils.parseEther("10")
-      );
       await expect(vrfBalancer.performUpkeep(performData))
         .to.emit(vrfBalancer, "TopUpSucceeded")
         .withArgs(subscriptionId);
@@ -410,11 +380,7 @@ describe("VRF Balance Manager", function () {
       await vrfBalancer.setKeeperRegistryAddress(owner.address);
       await vrfBalancer.setPegSwapRouter(pegswapRouterMock.address);
       await vrfBalancer.setERC20Link(linkTokenERC20.address);
-      await vrfBalancer.approveAmount(
-        linkTokenERC20.address,
-        pegswapRouterMock.address,
-        ethers.utils.parseEther("100")
-      );
+
       const tx = await vrfCoordinatorV2Mock.createSubscription();
       const txReceipt = await tx.wait(1);
       const subscriptionId = txReceipt.events[0].args.subId;
@@ -435,11 +401,6 @@ describe("VRF Balance Manager", function () {
       assert(upkeepNeeded);
       await erc20WETHMock.transfer(
         vrfBalancer.address,
-        ethers.utils.parseEther("10")
-      );
-      await vrfBalancer.approveAmount(
-        erc20WETHMock.address,
-        uniswapV2RouterMock.address,
         ethers.utils.parseEther("10")
       );
       await expect(vrfBalancer.performUpkeep(performData))
