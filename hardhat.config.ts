@@ -30,6 +30,10 @@ const config: HardhatUserConfig = {
   },
   defaultNetwork: "hardhat",
   networks: {
+    ganache: {
+      url: MAINNET_RPC_URL,
+      chainId: 7777,
+    },
     hardhat: {
       gas: 30000000,
       chainId: 31337,
