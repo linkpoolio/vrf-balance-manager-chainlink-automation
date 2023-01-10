@@ -45,7 +45,7 @@ export const networkConfig: { [key: number]: any } = {
     linkContractBalance: ethers.utils.parseEther("5"),
     erc20AssetAddress: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270", // WMATIC
   },
-  7777: {
+  1337: {
     name: "ganache",
     linkTokenERC677: "0xb0897686c545045aFc77CF20eC7A532E3120E0F1",
     linkTokenERC20: "0x53E0bca35eC356BD5ddDFebbD1Fc0fD03FaBad39",
