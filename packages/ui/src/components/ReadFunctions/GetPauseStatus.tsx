@@ -1,23 +1,23 @@
 import { useState } from "react";
 import { getContract } from "sdk/src/lib/utils";
 import VRFBalancer from "sdk/src/abi/contracts/VRFBalancer.sol/VRFBalancer.json";
-import { getPegSwapRouter } from "../../../../sdk/src/ReadFunctions/pegswap";
+import { isPaused } from "sdk/src/ReadFunctions/isPaused";
 import "../../styles/main.css";
 
-function GetPegswapRouter() {
+function GetPauseStatus() {
   const [contractAddress, setContractAddress] = useState("");
   const [errorMessage, setErroMessage] = useState("");
 
-  const [router, setRouter] = useState("");
+  const [paused, setPaused] = useState("");
 
-  async function handleGetRouter() {
-    setRouter("");
+  async function handleGetPaused() {
+    setPaused("");
     setErroMessage("");
     try {
       const contract = getContract(contractAddress, VRFBalancer);
-      getPegSwapRouter(contract)
+      isPaused(contract)
         .then((res: any) => {
-          setRouter(res);
+          setPaused(String(res));
         })
         .catch((error: any) => {
           setErroMessage(error.message);
@@ -30,7 +30,7 @@ function GetPegswapRouter() {
   return (
     <div className="container">
       <div className="row">
-        <h2>Get Pegswap Router</h2>
+        <h2>Get Pause Status</h2>
       </div>
       <div className="row">
         <input
@@ -41,10 +41,10 @@ function GetPegswapRouter() {
         />
       </div>
       <div className="row">
-        <button onClick={handleGetRouter}>Get Pegswap Router</button>
+        <button onClick={handleGetPaused}>Get Paused</button>
       </div>
       <div className="row">
-        <p>Router Address: {router}</p>
+        <p>Is paused: {paused}</p>
       </div>
       <div className="row">
         <p>
@@ -55,4 +55,4 @@ function GetPegswapRouter() {
   );
 }
 
-export default GetPegswapRouter;
+export default GetPauseStatus;

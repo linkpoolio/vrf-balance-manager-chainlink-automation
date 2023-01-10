@@ -315,6 +315,14 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     }
 
     /**
+     * @notice Gets the keeper registry address.
+     * @return address address of the keeper registry.
+     */
+    function getKeeperRegistryAddress() public view returns (address) {
+        return keeperRegistryAddress;
+    }
+
+    /**
      * @notice Sets the LINK token address.
      * @param erc677Address The address of the ERC677 LINK token.
      */
@@ -333,12 +341,36 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     }
 
     /**
+     * @notice Gets the LINK token address.
+     * @return address address of the LINK token ERC-677.
+     */
+    function getERC677Address() public view returns (address) {
+        return address(erc677Link);
+    }
+
+    /**
+     * @notice Gets the LINK token address.
+     * @return address address of the LINK token ERC-20.
+     */
+    function getERC20Address() public view returns (address) {
+        return address(erc20Link);
+    }
+
+    /**
      * @notice Sets the minimum wait period between top up checks.
      * @param period The minimum wait period in seconds.
      */
     function setMinWaitPeriodSeconds(uint256 period) public onlyOwner {
         emit MinWaitPeriodUpdated(minWaitPeriodSeconds, period);
         minWaitPeriodSeconds = period;
+    }
+
+    /**
+     * @notice Gets the minimum wait period between top up checks.
+     * @return uint256 minimum wait period in seconds.
+     */
+    function getMinWaitPeriodSeconds() public view returns (uint256) {
+        return minWaitPeriodSeconds;
     }
 
     /**
@@ -353,6 +385,14 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     }
 
     /**
+     * @notice Gets the decentralized exchange address.
+     * @return address address of the decentralized exchange.
+     */
+    function getDEXRouter() public view returns (address) {
+        return address(dexRouter);
+    }
+
+    /**
      * @notice Sets the minimum LINK balance the contract should have.
      * @param amount The minimum LINK balance in wei.
      */
@@ -360,6 +400,14 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         require(amount > 0);
         emit ContractLINKMinBalanceUpdated(contractLINKMinBalance, amount);
         contractLINKMinBalance = amount;
+    }
+
+    /**
+     * @notice Gets the minimum LINK balance the contract should have.
+     * @return uint256 The minimum LINK balance in wei.
+     */
+    function getContractLINKMinBalance() public view returns (uint256) {
+        return contractLINKMinBalance;
     }
 
     /**
@@ -371,6 +419,15 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         require(assetAddress != address(0));
         emit ERC20AssetAddressUpdated(address(erc20Asset), assetAddress);
         erc20Asset = IERC20(assetAddress);
+    }
+
+    /**
+     * @notice Gets the address of the ERC20 asset being traded.
+     * @return address The address of the ERC20 asset.
+     *
+     */
+    function getERC20Asset() public view returns (address) {
+        return address(erc20Asset);
     }
 
     /**
@@ -489,7 +546,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
 
     /**
      * @notice Gets PegSwap router address.
-     * @return The address of the PegSwap router.
+     * @return address address of the PegSwap router.
      */
     function getPegSwapRouter() external view returns (address) {
         return address(pegSwapRouter);

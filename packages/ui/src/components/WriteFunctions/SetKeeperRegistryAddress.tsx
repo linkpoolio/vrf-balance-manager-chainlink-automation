@@ -1,27 +1,25 @@
 import { useState } from "react";
 import { getContract } from "sdk/src/lib/utils";
 import VRFBalancer from "sdk/src/abi/contracts/VRFBalancer.sol/VRFBalancer.json";
-import { isPaused } from "../../../../sdk/src/ReadFunctions/isPaused";
+import { setKeeperRegistryAddress } from "sdk/src/WriteFunctions/setKeeperRegistryAddress";
 import "../../styles/main.css";
 
-function GetPauseStatus() {
+function SetKeeperRegistryAddress() {
   const [contractAddress, setContractAddress] = useState("");
+
+  const [keeperRegistryAddress, setKeeperAddress] = useState("");
+
   const [errorMessage, setErroMessage] = useState("");
 
-  const [paused, setPaused] = useState("");
-
-  async function handleGetPaused() {
-    setPaused("");
+  async function handleSetParameters() {
     setErroMessage("");
     try {
       const contract = getContract(contractAddress, VRFBalancer);
-      isPaused(contract)
-        .then((res: any) => {
-          setPaused(String(res));
-        })
-        .catch((error: any) => {
+      setKeeperRegistryAddress(contract, keeperRegistryAddress).catch(
+        (error: any) => {
           setErroMessage(error.message);
-        });
+        }
+      );
     } catch (error: any) {
       setErroMessage(error.message);
     }
@@ -30,7 +28,7 @@ function GetPauseStatus() {
   return (
     <div className="container">
       <div className="row">
-        <h2>Get Pause Status</h2>
+        <h2>Set Keeper Registry Address</h2>
       </div>
       <div className="row">
         <input
@@ -40,11 +38,20 @@ function GetPauseStatus() {
           onChange={(e) => setContractAddress(e.target.value)}
         />
       </div>
+
       <div className="row">
-        <button onClick={handleGetPaused}>Get Paused</button>
+        <input
+          type="string"
+          value={keeperRegistryAddress}
+          placeholder="keeperRegistryAddress (address)"
+          onChange={(e) => setKeeperAddress(e.target.value)}
+        />
       </div>
+
       <div className="row">
-        <p>Is paused: {paused}</p>
+        <button onClick={handleSetParameters}>
+          Set Keeper Registry Address
+        </button>
       </div>
       <div className="row">
         <p>
@@ -55,4 +62,4 @@ function GetPauseStatus() {
   );
 }
 
-export default GetPauseStatus;
+export default SetKeeperRegistryAddress;
