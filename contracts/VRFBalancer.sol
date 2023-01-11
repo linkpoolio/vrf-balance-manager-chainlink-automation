@@ -160,11 +160,67 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         emit WatchListUpdated(oldWatchList, subscriptionIds);
     }
 
+<<<<<<< HEAD
     function getUnderFundedSubscriptions()
         external
         view
         returns (uint64[] memory)
     {
+=======
+    function addSubscription(uint64 subscriptionId, uint256 minBalance, uint256 topUpAmount) external onlyOwner {
+        if (subscriptionId == 0) {
+            revert InvalidWatchList();
+        }
+        if (topUpAmount == 0) {
+            revert InvalidWatchList();
+        }
+        if (topUpAmount <= minBalance) {
+            revert InvalidWatchList();
+        }
+        if (s_targets[subscriptionId].isActive) {
+            revert DuplicateSubcriptionId(subscriptionId);
+        }
+        s_targets[subscriptionId] =
+            Target({isActive: true, minBalance: minBalance, topUpAmount: topUpAmount, lastTopUpTimestamp: 0});
+        uint64[] memory oldWatchList = watchList;
+        watchList[oldWatchList.length] = subscriptionId;
+        emit WatchListUpdated(oldWatchList, watchList);
+    }
+
+    function deleteSubscription(uint64 subscriptionId) external onlyOwner {
+        s_targets[subscriptionId].isActive = false;
+        uint64[] memory oldWatchList = watchList;
+        uint64[] memory newWatchList = new uint64[](oldWatchList.length - 1);
+        uint256 count = 0;
+        for (uint256 idx = 0; idx < oldWatchList.length; idx++) {
+            if (oldWatchList[idx] != subscriptionId) {
+                newWatchList[count] = oldWatchList[idx];
+                count++;
+            }
+        }
+        watchList = newWatchList;
+        emit WatchListUpdated(oldWatchList, newWatchList);
+    }
+
+    function updateSubscription(uint64 subscriptionId, uint256 minBalance, uint256 topUpAmount) external onlyOwner {
+        if (subscriptionId == 0) {
+            revert InvalidWatchList();
+        }
+        if (topUpAmount == 0) {
+            revert InvalidWatchList();
+        }
+        if (topUpAmount <= minBalance) {
+            revert InvalidWatchList();
+        }
+        if (!s_targets[subscriptionId].isActive) {
+            revert InvalidWatchList();
+        }
+        s_targets[subscriptionId].minBalance = minBalance;
+        s_targets[subscriptionId].topUpAmount = topUpAmount;
+    }
+
+    function getUnderFundedSubscriptions() external view returns (uint64[] memory) {
+>>>>>>> f400210 (add extra subscription methods)
         return _getUnderfundedSubscriptions();
     }
 

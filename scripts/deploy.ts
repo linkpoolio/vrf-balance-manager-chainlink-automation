@@ -5,9 +5,7 @@ import { deploy } from "../test/utils/helpers";
 async function main() {
   const chainId =
     network.config.chainId != undefined ? network.config.chainId : 31337;
-  if (chainId == 31337) {
-    return;
-  }
+
   const networkName = {
     name: networkConfig[chainId],
     keepersUpdateInterval: networkConfig[chainId].keepersUpdateInterval,
@@ -19,7 +17,9 @@ async function main() {
     dexAddress: networkConfig[chainId].dexAddress,
     linkContractBalance: networkConfig[chainId].linkContractBalance,
     erc20AssetAddress: networkConfig[chainId].erc20AssetAddress,
+    pegswapAddress: networkConfig[chainId].pegswapAddress,
   };
+
   const bm = await deploy("VRFBalancer", [
     networkName.linkTokenERC677,
     networkName.linkTokenERC20,
@@ -34,6 +34,10 @@ async function main() {
   await bm.deployed();
 
   console.log(`VRF Balance Manager deployed to ${bm.address}`);
+
+  if (networkName.pegswapAddress.length > 0) {
+    await bm.setPegSwapRouter(networkName.pegswapAddress);
+  }
 }
 
 main().catch((error) => {

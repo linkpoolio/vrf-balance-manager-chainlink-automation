@@ -1,38 +1,53 @@
 import { ethers } from "hardhat";
 
 export const networkConfig: { [key: number]: any } = {
+  31337: {
+    name: "localhost",
+    linkTokenERC677: "0x514910771AF9Ca656af840dff83E8264EcF986CA",
+    linkTokenERC20: "0x0000000000000000000000000000000000000000", // set to 0x because it is not needed
+    vrfCoordinatorV2: "0x271682DEB8C4E0901D1a1550aD2e64D568E69909",
+    keepersRegistry: "0x02777053d6764996e594c3E88AF1D58D5363a2e6",
+    minWaitPeriodSeconds: 86400, // 1 day
+    dexAddress: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+    linkContractBalance: ethers.utils.parseEther("5"),
+    erc20AssetAddress: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    pegswapAddress: "", // set to 0x because it is not needed
+  },
   1: {
     name: "mainnet",
     linkTokenERC677: "0x514910771AF9Ca656af840dff83E8264EcF986CA",
-    linkTokenERC20: "0x0000000000000000000000000000000000000000",
+    linkTokenERC20: "0x0000000000000000000000000000000000000000", // set to 0x because it is not needed
     vrfCoordinatorV2: "0x271682DEB8C4E0901D1a1550aD2e64D568E69909",
-    keepersRegistry: "	0x02777053d6764996e594c3E88AF1D58D5363a2e6",
+    keepersRegistry: "0x02777053d6764996e594c3E88AF1D58D5363a2e6",
     minWaitPeriodSeconds: 86400, // 1 day
     dexAddress: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", // UniswapV2 Router02
     linkContractBalance: ethers.utils.parseEther("5"),
     erc20AssetAddress: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", // wETH
+    pegswapAddress: "", // set to 0x because it is not needed
   },
   5: {
     name: "goerli",
     linkTokenERC677: "0x326C977E6efc84E512bB9C30f76E30c160eD06FB",
-    linkTokenERC20: "0x0000000000000000000000000000000000000000",
+    linkTokenERC20: "0x0000000000000000000000000000000000000000", // set to 0x because it is not needed
     vrfCoordinatorV2: "0x2Ca8E0C643bDe4C2E08ab1fA0da3401AdAD7734D",
     keepersRegistry: "0x02777053d6764996e594c3E88AF1D58D5363a2e6",
     minWaitPeriodSeconds: 86400, // 1 day
     dexAddress: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", // UniswapV2 Router02
     linkContractBalance: ethers.utils.parseEther("5"),
     erc20AssetAddress: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+    pegswapAddress: "", // set to 0x because it is not needed
   },
   56: {
     name: "binance-mainnet",
     linkTokenERC677: "0x404460C6A5EdE2D891e8297795264fDe62ADBB75",
     linkTokenERC20: "0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD",
     vrfCoordinatorV2: "0xc587d9053cd1118f25F645F9E08BB98c9712A4EE",
-    keepersRegistry: "	0x02777053d6764996e594c3E88AF1D58D5363a2e6",
+    keepersRegistry: "0x02777053d6764996e594c3E88AF1D58D5363a2e6",
     minWaitPeriodSeconds: 86400, // 1 day
     dexAddress: "0x10ED43C718714eb63d5aA57B78B54704E256024E", // PancakeSwap Router
     linkContractBalance: ethers.utils.parseEther("5"),
     erc20AssetAddress: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", // WBNB
+    pegswapAddress: "0x1FCc3B22955e76Ca48bF025f1A6993685975Bb9e",
   },
   137: {
     name: "polygon-mainnet",
@@ -44,6 +59,7 @@ export const networkConfig: { [key: number]: any } = {
     dexAddress: "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff", // QuickSwap Router
     linkContractBalance: ethers.utils.parseEther("5"),
     erc20AssetAddress: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270", // WMATIC
+    pegswapAddress: "0xAA1DC356dc4B18f30C347798FD5379F3D77ABC5b",
   },
   1337: {
     name: "ganache",
