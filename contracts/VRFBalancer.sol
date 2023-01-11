@@ -142,6 +142,10 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         emit WatchListUpdated(oldWatchList, subscriptionIds);
     }
 
+    function getCurrentWatchList() external view onlyOwner returns (uint64[] memory) {
+        return watchList;
+    }
+
     function addSubscription(uint64 subscriptionId, uint256 minBalance, uint256 topUpAmount) external onlyOwner {
         if (subscriptionId == 0) {
             revert InvalidWatchList();
@@ -158,8 +162,13 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         s_targets[subscriptionId] =
             Target({isActive: true, minBalance: minBalance, topUpAmount: topUpAmount, lastTopUpTimestamp: 0});
         uint64[] memory oldWatchList = watchList;
-        watchList[oldWatchList.length] = subscriptionId;
-        emit WatchListUpdated(oldWatchList, watchList);
+        uint64[] memory newWatchList = new uint64[](oldWatchList.length + 1);
+        for (uint256 idx = 0; idx < oldWatchList.length; idx++) {
+            newWatchList[idx] = oldWatchList[idx];
+        }
+        newWatchList[oldWatchList.length] = subscriptionId;
+        watchList = newWatchList;
+        emit WatchListUpdated(oldWatchList, newWatchList);
     }
 
     function deleteSubscription(uint64 subscriptionId) external onlyOwner {

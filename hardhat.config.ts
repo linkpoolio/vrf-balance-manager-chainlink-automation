@@ -45,8 +45,8 @@ const config: Config = {
   },
   networks: {
     ganache: {
-      url: MAINNET_RPC_URL,
-      chainId: 1337,
+      // url: MAINNET_RPC_URL,
+      // chainId: 1337,
     },
     hardhat: {
       gas: 30000000,

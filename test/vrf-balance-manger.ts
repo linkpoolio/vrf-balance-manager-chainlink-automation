@@ -154,6 +154,56 @@ describe("VRF Balance Manager", function () {
     });
   });
 
+  describe("subscriptions", () => {
+    it("should add a new subscription", async () => {
+      const tx = await vrfCoordinatorV2Mock.createSubscription();
+      const txReceipt = await tx.wait(1);
+      const subscriptionId = txReceipt.events[0].args.subId;
+      expect(
+        await vrfBalancer.addSubscription(
+          subscriptionId,
+          ethers.utils.parseEther("5"),
+          ethers.utils.parseEther("6")
+        )
+      ).to.emit(vrfBalancer, "WatchListUpdated");
+      const watchList: [] = await vrfBalancer.getCurrentWatchList();
+      assert.equal(watchList.length, 1);
+    });
+    it("should update an active subscription", async () => {
+      const tx = await vrfCoordinatorV2Mock.createSubscription();
+      const txReceipt = await tx.wait(1);
+      const subscriptionId = txReceipt.events[0].args.subId;
+      await vrfBalancer.setWatchList(
+        [subscriptionId],
+        [ethers.utils.parseEther("5")],
+        [ethers.utils.parseEther("6")]
+      );
+      expect(
+        await vrfBalancer.updateSubscription(
+          subscriptionId,
+          ethers.utils.parseEther("5"),
+          ethers.utils.parseEther("8")
+        )
+      ).to.emit(vrfBalancer, "WatchListUpdated");
+    });
+    it("should delete an active subscription", async () => {
+      const tx = await vrfCoordinatorV2Mock.createSubscription();
+      const txReceipt = await tx.wait(1);
+      const subscriptionId = txReceipt.events[0].args.subId;
+      await vrfBalancer.setWatchList(
+        [subscriptionId],
+        [ethers.utils.parseEther("5")],
+        [ethers.utils.parseEther("6")]
+      );
+      expect(await vrfBalancer.deleteSubscription(subscriptionId)).to.emit(
+        vrfBalancer,
+        "WatchListUpdated"
+      );
+      const watchList: [] = await vrfBalancer.getCurrentWatchList();
+      assert.equal(watchList.length, 0);
+    });
+  });
+
   describe("topUp()", () => {
     it("should run top up coordinator subscriptions", async () => {});
   });
