@@ -1,4 +1,4 @@
-# Lotto | Chainlink Automation
+# VRF Balance Manager | Chainlink Automation
 
 ## I. About
 
@@ -22,7 +22,7 @@ The VRF Balancer is a configutable smartcontract that allows you to automaticall
 ### 1. Clone repo
 
 ```
-$ git clone git@github.com:linkpoolio/circuit-breaker-chainlink-automation.git
+$ git clone git@github.com:linkpoolio/vrf-balance-chainlink-automation.git
 ```
 
 ### 2. Setup .env file
