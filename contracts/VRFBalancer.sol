@@ -46,27 +46,12 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     event TopUpSucceeded(uint64 indexed subscriptionId);
     event TopUpFailed(uint64 indexed subscriptionId);
     event KeeperRegistryAddressUpdated(address oldAddress, address newAddress);
-    event VRFCoordinatorV2AddressUpdated(
-        address oldAddress,
-        address newAddress
-    );
-    event MinWaitPeriodUpdated(
-        uint256 oldMinWaitPeriod,
-        uint256 newMinWaitPeriod
-    );
-    event PegswapRouterUpdated(
-        address oldPegswapRouter,
-        address newPegswapRouter
-    );
+    event VRFCoordinatorV2AddressUpdated(address oldAddress, address newAddress);
+    event MinWaitPeriodUpdated(uint256 oldMinWaitPeriod, uint256 newMinWaitPeriod);
+    event PegswapRouterUpdated(address oldPegswapRouter, address newPegswapRouter);
     event DEXAddressUpdated(address newDEXAddress);
-    event ContractLINKMinBalanceUpdated(
-        uint256 oldContractLINKBalance,
-        uint256 newContractLINKBalance
-    );
-    event ERC20AssetAddressUpdated(
-        address oldERC20AssetAddress,
-        address newERC20AssetAddress
-    );
+    event ContractLINKMinBalanceUpdated(uint256 oldContractLINKBalance, uint256 newContractLINKBalance);
+    event ERC20AssetAddressUpdated(address oldERC20AssetAddress, address newERC20AssetAddress);
     event PegSwapSuccess(uint256 amount, address from, address to);
     event DexSwapSuccess(uint256 amount, address from, address to);
     event WatchListUpdated(uint64[] oldSubs, uint64[] newSubs);
@@ -126,10 +111,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         uint256[] calldata minBalances,
         uint256[] calldata topUpAmounts
     ) external onlyOwner {
-        if (
-            subscriptionIds.length != minBalances.length ||
-            subscriptionIds.length != topUpAmounts.length
-        ) {
+        if (subscriptionIds.length != minBalances.length || subscriptionIds.length != topUpAmounts.length) {
             revert InvalidWatchList();
         }
         uint64[] memory oldWatchList = watchList;
@@ -160,13 +142,6 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         emit WatchListUpdated(oldWatchList, subscriptionIds);
     }
 
-<<<<<<< HEAD
-    function getUnderFundedSubscriptions()
-        external
-        view
-        returns (uint64[] memory)
-    {
-=======
     function addSubscription(uint64 subscriptionId, uint256 minBalance, uint256 topUpAmount) external onlyOwner {
         if (subscriptionId == 0) {
             revert InvalidWatchList();
@@ -220,7 +195,6 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     }
 
     function getUnderFundedSubscriptions() external view returns (uint64[] memory) {
->>>>>>> f400210 (add extra subscription methods)
         return _getUnderfundedSubscriptions();
     }
 
@@ -228,11 +202,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
      * @notice Collects the underfunded subscriptions based on user parameters.
      * @return The subscription IDs that are underfunded.
      */
-    function _getUnderfundedSubscriptions()
-        internal
-        view
-        returns (uint64[] memory)
-    {
+    function _getUnderfundedSubscriptions() internal view returns (uint64[] memory) {
         uint64[] memory currentWatchList = watchList;
         uint64[] memory needsFunding = new uint64[](currentWatchList.length);
         uint256 count = 0;
@@ -240,14 +210,10 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         Target memory target;
         for (uint256 idx = 0; idx < currentWatchList.length; idx++) {
             target = s_targets[currentWatchList[idx]];
-            (uint96 subscriptionBalance, , , ) = COORDINATOR.getSubscription(
-                currentWatchList[idx]
-            );
+            (uint96 subscriptionBalance,,,) = COORDINATOR.getSubscription(currentWatchList[idx]);
 
-            if (
-                target.lastTopUpTimestamp + minWaitPeriod <= block.timestamp &&
-                subscriptionBalance < target.minBalance
-            ) {
+            if (target.lastTopUpTimestamp + minWaitPeriod <= block.timestamp && subscriptionBalance < target.minBalance)
+            {
                 needsFunding[count] = currentWatchList[idx];
                 count++;
             }
@@ -272,26 +238,16 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         Target memory target;
         for (uint256 idx = 0; idx < needsFunding.length; idx++) {
             target = s_targets[needsFunding[idx]];
-            (uint96 subscriptionBalance, , , ) = COORDINATOR.getSubscription(
-                needsFunding[idx]
-            );
+            (uint96 subscriptionBalance,,,) = COORDINATOR.getSubscription(needsFunding[idx]);
             if (
-                target.isActive &&
-                target.lastTopUpTimestamp + _minWaitPeriodSeconds <=
-                block.timestamp &&
-                subscriptionBalance < target.minBalance &&
-                contractBalance >= target.topUpAmount
+                target.isActive && target.lastTopUpTimestamp + _minWaitPeriodSeconds <= block.timestamp
+                    && subscriptionBalance < target.minBalance && contractBalance >= target.topUpAmount
             ) {
-                bool success = erc677Link.transferAndCall(
-                    address(COORDINATOR),
-                    target.topUpAmount,
-                    abi.encode(needsFunding[idx])
-                );
+                bool success =
+                    erc677Link.transferAndCall(address(COORDINATOR), target.topUpAmount, abi.encode(needsFunding[idx]));
 
                 if (success) {
-                    s_targets[needsFunding[idx]].lastTopUpTimestamp = uint56(
-                        block.timestamp
-                    );
+                    s_targets[needsFunding[idx]].lastTopUpTimestamp = uint56(block.timestamp);
                     emit TopUpSucceeded(needsFunding[idx]);
                 } else {
                     emit TopUpFailed(needsFunding[idx]);
@@ -303,9 +259,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         }
     }
 
-    function checkUpkeep(
-        bytes calldata /* checkData */
-    )
+    function checkUpkeep(bytes calldata /* checkData */ )
         external
         view
         override
@@ -318,27 +272,14 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         return (upkeepNeeded, performData);
     }
 
-    function performUpkeep(bytes calldata performData)
-        external
-        override
-        onlyKeeperRegistry
-        whenNotPaused
-    {
+    function performUpkeep(bytes calldata performData) external override onlyKeeperRegistry whenNotPaused {
         uint64[] memory needsFunding = abi.decode(performData, (uint64[]));
         if (needsFunding.length > 0) {
             if (needsPegswap) {
-                _dexSwap(
-                    address(erc20Asset),
-                    address(erc20Link),
-                    erc20Asset.balanceOf(address(this))
-                );
+                _dexSwap(address(erc20Asset), address(erc20Link), erc20Asset.balanceOf(address(this)));
                 _pegSwap();
             } else {
-                _dexSwap(
-                    address(erc20Asset),
-                    address(erc677Link),
-                    erc20Asset.balanceOf(address(this))
-                );
+                _dexSwap(address(erc20Asset), address(erc677Link), erc20Asset.balanceOf(address(this)));
             }
             _topUp(needsFunding);
         }
@@ -348,15 +289,9 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
      * @notice Sets the VRF coordinator address.
      * @param coordinatorAddress The address of the VRF coordinator.
      */
-    function setVRFCoordinatorV2Address(address coordinatorAddress)
-        public
-        onlyOwner
-    {
+    function setVRFCoordinatorV2Address(address coordinatorAddress) public onlyOwner {
         require(coordinatorAddress != address(0));
-        emit VRFCoordinatorV2AddressUpdated(
-            address(COORDINATOR),
-            coordinatorAddress
-        );
+        emit VRFCoordinatorV2AddressUpdated(address(COORDINATOR), coordinatorAddress);
         COORDINATOR = VRFCoordinatorV2Interface(coordinatorAddress);
     }
 
@@ -382,10 +317,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
      * @notice Sets the LINK token address.
      * @param erc677Address The address of the ERC677 LINK token.
      */
-    function setLinkTokenAddresses(address erc677Address, address erc20Address)
-        public
-        onlyOwner
-    {
+    function setLinkTokenAddresses(address erc677Address, address erc20Address) public onlyOwner {
         require(erc677Address != address(0), "ERC677 address cannot be 0");
         if (erc20Address != address(0)) {
             needsPegswap = true;
@@ -518,21 +450,14 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         return paused();
     }
 
-    function withdraw(uint256 amount, address payable payee)
-        external
-        onlyOwner
-    {
+    function withdraw(uint256 amount, address payable payee) external onlyOwner {
         require(payee != address(0));
         emit FundsWithdrawn(amount, payee);
         bool ok = erc677Link.transfer(payee, amount);
         require(ok, "LINK transfer failed");
     }
 
-    function dexSwap(
-        address fromToken,
-        address toToken,
-        uint256 amount
-    ) public onlyOwner {
+    function dexSwap(address fromToken, address toToken, uint256 amount) public onlyOwner {
         _dexSwap(fromToken, toToken, amount);
     }
 
@@ -542,22 +467,12 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
      * @param toToken Token address receiving from swap.
      * @param amount Total tokens sending to swap.
      */
-    function _dexSwap(
-        address fromToken,
-        address toToken,
-        uint256 amount
-    ) internal whenNotPaused {
+    function _dexSwap(address fromToken, address toToken, uint256 amount) internal whenNotPaused {
         address[] memory path = new address[](2);
         path[0] = fromToken;
         path[1] = toToken;
         IERC20(fromToken).safeIncreaseAllowance(address(dexRouter), amount);
-        uint256[] memory amounts = dexRouter.swapExactTokensForTokens(
-            amount,
-            1,
-            path,
-            address(this),
-            block.timestamp
-        );
+        uint256[] memory amounts = dexRouter.swapExactTokensForTokens(amount, 1, path, address(this), block.timestamp);
         emit DexSwapSuccess(amounts[1], fromToken, toToken);
     }
 
@@ -573,20 +488,9 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
      */
     function _pegSwap() internal whenNotPaused {
         require(needsPegswap, "No pegswap needed");
-        IERC20(erc20Link).safeIncreaseAllowance(
-            address(pegSwapRouter),
-            erc20Link.balanceOf(address(this))
-        );
-        pegSwapRouter.swap(
-            erc20Link.balanceOf(address(this)),
-            address(erc20Link),
-            address(erc677Link)
-        );
-        emit PegSwapSuccess(
-            erc677Link.balanceOf(address(this)),
-            address(erc20Link),
-            address(erc677Link)
-        );
+        IERC20(erc20Link).safeIncreaseAllowance(address(pegSwapRouter), erc20Link.balanceOf(address(this)));
+        pegSwapRouter.swap(erc20Link.balanceOf(address(this)), address(erc20Link), address(erc677Link));
+        emit PegSwapSuccess(erc677Link.balanceOf(address(this)), address(erc20Link), address(erc677Link));
     }
 
     /**
