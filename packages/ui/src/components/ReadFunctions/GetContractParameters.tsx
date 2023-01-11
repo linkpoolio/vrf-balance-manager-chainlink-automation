@@ -46,7 +46,7 @@ function GetContractParameters() {
         });
       getContractLINKMinBalance(contract)
         .then((res: any) => {
-          setLINKMinBalance(res);
+          setLINKMinBalance(res.toString());
         })
         .catch((error: any) => {
           setErroMessage(error.message);
@@ -67,7 +67,7 @@ function GetContractParameters() {
         });
       getMinWaitPeriodSeconds(contract)
         .then((res: any) => {
-          setMinWaitPeriod(res);
+          setMinWaitPeriod(res.toString());
         })
         .catch((error: any) => {
           setErroMessage(error.message);
