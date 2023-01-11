@@ -45,4 +45,15 @@ export const networkConfig: { [key: number]: any } = {
     linkContractBalance: ethers.utils.parseEther("5"),
     erc20AssetAddress: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270", // WMATIC
   },
+  1337: {
+    name: "ganache",
+    linkTokenERC677: "0xb0897686c545045aFc77CF20eC7A532E3120E0F1",
+    linkTokenERC20: "0x53E0bca35eC356BD5ddDFebbD1Fc0fD03FaBad39",
+    vrfCoordinatorV2: "0xAE975071Be8F8eE67addBC1A82488F1C24858067",
+    keepersRegistry: "0x02777053d6764996e594c3E88AF1D58D5363a2e6",
+    minWaitPeriodSeconds: 86400,
+    dexAddress: "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff",
+    linkContractBalance: ethers.utils.parseEther("5"),
+    erc20AssetAddress: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+  },
 };

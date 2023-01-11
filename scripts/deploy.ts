@@ -9,7 +9,7 @@ async function main() {
     return;
   }
   const networkName = {
-    name: networkConfig[chainId].name,
+    name: networkConfig[chainId],
     keepersUpdateInterval: networkConfig[chainId].keepersUpdateInterval,
     linkTokenERC677: networkConfig[chainId].linkTokenERC677,
     linkTokenERC20: networkConfig[chainId].linkTokenERC20,
