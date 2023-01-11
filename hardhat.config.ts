@@ -44,10 +44,10 @@ const config: Config = {
     format: "json",
   },
   networks: {
-    ganache: {
-      // url: MAINNET_RPC_URL,
-      // chainId: 1337,
-    },
+    // ganache: {
+    // url: MAINNET_RPC_URL,
+    // chainId: 1337,
+    // },
     hardhat: {
       gas: 30000000,
       chainId: 31337,
