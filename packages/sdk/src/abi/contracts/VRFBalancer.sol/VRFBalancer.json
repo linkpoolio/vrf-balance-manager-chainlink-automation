@@ -40,6 +40,11 @@
         "internalType": "address",
         "name": "erc20AssetAddress",
         "type": "address"
+      },
+      {
+        "internalType": "uint8",
+        "name": "maxWatchList",
+        "type": "uint8"
       }
     ],
     "stateMutability": "nonpayable",
@@ -208,6 +213,25 @@
       }
     ],
     "name": "KeeperRegistryAddressUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "oldMaxWatchListSize",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "newMaxWatchListSize",
+        "type": "uint8"
+      }
+    ],
+    "name": "MaxWatchListSizeUpdated",
     "type": "event"
   },
   {
@@ -571,32 +595,6 @@
   },
   {
     "inputs": [],
-    "name": "getKeeperRegistryAddress",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getMinWaitPeriodSeconds",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "getPegSwapRouter",
     "outputs": [
       {
@@ -642,6 +640,19 @@
         "internalType": "address",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "maxWatchListSize",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
       }
     ],
     "stateMutability": "view",
@@ -805,6 +816,19 @@
       }
     ],
     "name": "setLinkTokenAddresses",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint8",
+        "name": "size",
+        "type": "uint8"
+      }
+    ],
+    "name": "setMaxWatchListSize",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

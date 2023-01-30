@@ -17,7 +17,8 @@ describe("VRF Balance Manager", function () {
     pegswapRouterMock: any,
     vrfCoordinatorV2Mock: any,
     uniswapV2RouterMock: any,
-    uniswapV2FactoryMock: any;
+    uniswapV2FactoryMock: any,
+    maxWatchListSize = 10;
   let vrfBalancer: any;
 
   beforeEach(async () => {
@@ -114,6 +115,7 @@ describe("VRF Balance Manager", function () {
       uniswapV2RouterMock.address,
       linkContractBalance,
       erc20WETHMock.address,
+      maxWatchListSize,
     ]);
   });
 

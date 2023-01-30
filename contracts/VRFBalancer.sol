@@ -1,21 +1,22 @@
 //SPDX-License-Identifier: MIT
 pragma solidity <=0.8.17;
 
-import "@chainlink/contracts/src/v0.8/AutomationCompatible.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "../contracts/interfaces/PegswapInterface.sol";
-import "@openzeppelin/contracts/interfaces/IERC20.sol";
-import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IVRFBalancer} from "./interfaces/IVRFBalancer.sol";
+import {AutomationCompatibleInterface} from "@chainlink/contracts/src/v0.8/AutomationCompatible.sol";
+import {VRFCoordinatorV2Interface} from "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import {LinkTokenInterface} from "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
+import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
+import {PegswapInterface} from "../contracts/interfaces/PegswapInterface.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {IUniswapV2Router02} from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title VRFBalancer
  * @notice Creates automation for vrf subscriptions
  * @dev The linkTokenAddress in constructor is the ERC677 LINK token address of the network
  */
-contract VRFBalancer is Pausable, AutomationCompatibleInterface {
+contract VRFBalancer is IVRFBalancer, Pausable, AutomationCompatibleInterface {
     using SafeERC20 for IERC20;
 
     VRFCoordinatorV2Interface public COORDINATOR;
@@ -31,6 +32,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     uint64[] private watchList;
     uint256 private constant MIN_GAS_FOR_TRANSFER = 55_000;
     bool public needsPegswap;
+    uint8 public maxWatchListSize;
 
     struct Target {
         bool isActive;
@@ -55,6 +57,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     event PegSwapSuccess(uint256 amount, address from, address to);
     event DexSwapSuccess(uint256 amount, address from, address to);
     event WatchListUpdated(uint64[] oldSubs, uint64[] newSubs);
+    event MaxWatchListSizeUpdated(uint8 oldMaxWatchListSize, uint8 newMaxWatchListSize);
 
     // Errors
 
@@ -87,7 +90,8 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         uint256 minPeriodSeconds,
         address dexContractAddress,
         uint256 linkContractBalance,
-        address erc20AssetAddress
+        address erc20AssetAddress,
+        uint8 maxWatchList
     ) {
         owner = msg.sender;
         setLinkTokenAddresses(erc677linkTokenAddress, erc20linkTokenAddress);
@@ -97,6 +101,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         setDEXAddress(dexContractAddress);
         setContractLINKMinBalance(linkContractBalance);
         setERC20Asset(erc20AssetAddress);
+        setMaxWatchListSize(maxWatchList);
     }
 
     /**
@@ -111,7 +116,10 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         uint256[] calldata minBalances,
         uint256[] calldata topUpAmounts
     ) external onlyOwner {
-        if (subscriptionIds.length != minBalances.length || subscriptionIds.length != topUpAmounts.length) {
+        if (
+            subscriptionIds.length > maxWatchListSize || subscriptionIds.length != minBalances.length
+                || subscriptionIds.length != topUpAmounts.length
+        ) {
             revert InvalidWatchList();
         }
         uint64[] memory oldWatchList = watchList;
@@ -142,10 +150,20 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         emit WatchListUpdated(oldWatchList, subscriptionIds);
     }
 
+    /**
+     * @notice Returns the current watch list.
+     * @return uint64[] The current watch list.
+     */
     function getCurrentWatchList() external view onlyOwner returns (uint64[] memory) {
         return watchList;
     }
 
+    /**
+     * @notice Adds a subscription to the watch list.
+     * @param subscriptionId The subscription ID to watch.
+     * @param minBalance The minimum balance to maintain for the subscription.
+     * @param topUpAmount The amount to top up the subscription by when it falls below the minimum.
+     */
     function addSubscription(uint64 subscriptionId, uint256 minBalance, uint256 topUpAmount) external onlyOwner {
         if (subscriptionId == 0) {
             revert InvalidWatchList();
@@ -171,6 +189,10 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         emit WatchListUpdated(oldWatchList, newWatchList);
     }
 
+    /**
+     * @notice Deletes a subscription from the watch list.
+     * @param subscriptionId The subscription ID to delete.
+     */
     function deleteSubscription(uint64 subscriptionId) external onlyOwner {
         s_targets[subscriptionId].isActive = false;
         uint64[] memory oldWatchList = watchList;
@@ -186,6 +208,12 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         emit WatchListUpdated(oldWatchList, newWatchList);
     }
 
+    /**
+     * @notice Updates the subscription parameters.
+     * @param subscriptionId The subscription ID to update.
+     * @param minBalance The minimum balance to maintain for the subscription.
+     * @param topUpAmount The amount to top up the subscription by when it falls below the minimum.
+     */
     function updateSubscription(uint64 subscriptionId, uint256 minBalance, uint256 topUpAmount) external onlyOwner {
         if (subscriptionId == 0) {
             revert InvalidWatchList();
@@ -203,14 +231,14 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
         s_targets[subscriptionId].topUpAmount = topUpAmount;
     }
 
-    function getUnderFundedSubscriptions() external view returns (uint64[] memory) {
-        return _getUnderfundedSubscriptions();
-    }
-
     /**
      * @notice Collects the underfunded subscriptions based on user parameters.
      * @return The subscription IDs that are underfunded.
      */
+    function getUnderFundedSubscriptions() external view returns (uint64[] memory) {
+        return _getUnderfundedSubscriptions();
+    }
+
     function _getUnderfundedSubscriptions() internal view returns (uint64[] memory) {
         uint64[] memory currentWatchList = watchList;
         uint64[] memory needsFunding = new uint64[](currentWatchList.length);
@@ -315,14 +343,6 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     }
 
     /**
-     * @notice Gets the keeper registry address.
-     * @return address address of the keeper registry.
-     */
-    function getKeeperRegistryAddress() public view returns (address) {
-        return keeperRegistryAddress;
-    }
-
-    /**
      * @notice Sets the LINK token address.
      * @param erc677Address The address of the ERC677 LINK token.
      */
@@ -338,10 +358,19 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     }
 
     /**
+     * @notice Sets the max amount of watch list items.
+     * @param size The max amount of watch list items.
+     */
+    function setMaxWatchListSize(uint8 size) public onlyOwner {
+        emit MaxWatchListSizeUpdated(maxWatchListSize, size);
+        maxWatchListSize = size;
+    }
+
+    /**
      * @notice Gets the LINK token address.
      * @return address address of the LINK token ERC-677.
      */
-    function getERC677Address() public view returns (address) {
+    function getERC677Address() external view returns (address) {
         return address(erc677Link);
     }
 
@@ -349,7 +378,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
      * @notice Gets the LINK token address.
      * @return address address of the LINK token ERC-20.
      */
-    function getERC20Address() public view returns (address) {
+    function getERC20Address() external view returns (address) {
         return address(erc20Link);
     }
 
@@ -360,14 +389,6 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
     function setMinWaitPeriodSeconds(uint256 period) public onlyOwner {
         emit MinWaitPeriodUpdated(minWaitPeriodSeconds, period);
         minWaitPeriodSeconds = period;
-    }
-
-    /**
-     * @notice Gets the minimum wait period between top up checks.
-     * @return uint256 minimum wait period in seconds.
-     */
-    function getMinWaitPeriodSeconds() public view returns (uint256) {
-        return minWaitPeriodSeconds;
     }
 
     /**
@@ -385,7 +406,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
      * @notice Gets the decentralized exchange address.
      * @return address address of the decentralized exchange.
      */
-    function getDEXRouter() public view returns (address) {
+    function getDEXRouter() external view returns (address) {
         return address(dexRouter);
     }
 
@@ -403,7 +424,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
      * @notice Gets the minimum LINK balance the contract should have.
      * @return uint256 The minimum LINK balance in wei.
      */
-    function getContractLINKMinBalance() public view returns (uint256) {
+    function getContractLINKMinBalance() external view returns (uint256) {
         return contractLINKMinBalance;
     }
 
@@ -423,7 +444,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
      * @return address The address of the ERC20 asset.
      *
      */
-    function getERC20Asset() public view returns (address) {
+    function getERC20Asset() external view returns (address) {
         return address(erc20Asset);
     }
 
@@ -433,7 +454,7 @@ contract VRFBalancer is Pausable, AutomationCompatibleInterface {
      * @return uint256 The assets balance in wei.
      *
      */
-    function getAssetBalance(address asset) public view returns (uint256) {
+    function getAssetBalance(address asset) external view returns (uint256) {
         return IERC20(asset).balanceOf(address(this));
     }
 
