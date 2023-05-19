@@ -10,41 +10,34 @@ The VRF Balancer is a configutable smartcontract that allows you to automaticall
 
 - Install any wallet to your browser (Metamask, etc.)
 
-### 2. Setup Ganache
-
-- Install ganache client locally
-- Run ganache
-- Confirm test eth on ganache account
-- Set metamask to ganache network
-
 ## III. Local Setup
 
 ### 1. Clone repo
 
 ```
-$ git clone git@github.com:linkpoolio/vrf-balance-chainlink-automation.git
+git clone git@github.com:linkpoolio/vrf-balance-chainlink-automation.git
 ```
 
 ### 2. Setup .env file
 
 ```
 # from /root
-$ echo "NETWORK=ganache" >> .env
-$ echo "RPC_URL=\"http://127.0.0.1:7545\"" >> .env
+echo "NETWORK=hardhat" >> .env
+echo "RPC_URL=\"http://127.0.0.1:7545\"" >> .env
 ```
 
 ### 3. Install dependencies.
 
 ```
 # from /root
-$ pnpm install
+npm install
 ```
 
 ### 4. Deploy contract
 
 ```
 # from /root
-$ make deploy
+make deploy
 ```
 
 ## IV. Run the App
@@ -53,7 +46,7 @@ $ make deploy
 
 ```
 # from /root/ui
-$ pnpm storybook
+npm storybook
 ```
 
 ### 2. View app
@@ -66,19 +59,21 @@ $ pnpm storybook
 
 ```bash
 # from root
-$ make test-contracts
+make test-contracts
 ```
 
 ### 2. Check test coverage
 
 ```bash
 # from root
-$ make coverage
+make coverage
 ```
 
 ## VI. Deploy
 
-Contract Addresses
+```bash
+make deploy
+```
 
 Example Constructor Arguments (See `network.config.ts` for more networks)
 
