@@ -1,5 +1,3 @@
-import { ethers } from "hardhat";
-
 export const networkConfig: { [key: number]: any } = {
   31337: {
     name: "localhost",
@@ -9,7 +7,6 @@ export const networkConfig: { [key: number]: any } = {
     keepersRegistry: "0x02777053d6764996e594c3E88AF1D58D5363a2e6",
     minWaitPeriodSeconds: 86400, // 1 day
     dexAddress: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
-    linkContractBalance: ethers.utils.parseEther("5"),
     erc20AssetAddress: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
     pegswapAddress: "", // set to 0x because it is not needed
   },
@@ -21,7 +18,6 @@ export const networkConfig: { [key: number]: any } = {
     keepersRegistry: "0x02777053d6764996e594c3E88AF1D58D5363a2e6",
     minWaitPeriodSeconds: 86400, // 1 day
     dexAddress: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", // UniswapV2 Router02
-    linkContractBalance: ethers.utils.parseEther("5"),
     erc20AssetAddress: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", // wETH
     pegswapAddress: "", // set to 0x because it is not needed
   },
@@ -33,7 +29,6 @@ export const networkConfig: { [key: number]: any } = {
     keepersRegistry: "0x02777053d6764996e594c3E88AF1D58D5363a2e6",
     minWaitPeriodSeconds: 86400, // 1 day
     dexAddress: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", // UniswapV2 Router02
-    linkContractBalance: ethers.utils.parseEther("5"),
     erc20AssetAddress: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
     pegswapAddress: "", // set to 0x because it is not needed
   },
@@ -45,7 +40,6 @@ export const networkConfig: { [key: number]: any } = {
     keepersRegistry: "0x02777053d6764996e594c3E88AF1D58D5363a2e6",
     minWaitPeriodSeconds: 86400, // 1 day
     dexAddress: "0x10ED43C718714eb63d5aA57B78B54704E256024E", // PancakeSwap Router
-    linkContractBalance: ethers.utils.parseEther("5"),
     erc20AssetAddress: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", // WBNB
     pegswapAddress: "0x1FCc3B22955e76Ca48bF025f1A6993685975Bb9e",
   },
@@ -57,7 +51,6 @@ export const networkConfig: { [key: number]: any } = {
     keepersRegistry: "0x02777053d6764996e594c3E88AF1D58D5363a2e6",
     minWaitPeriodSeconds: 86400, // 1 day
     dexAddress: "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff", // QuickSwap Router
-    linkContractBalance: ethers.utils.parseEther("5"),
     erc20AssetAddress: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270", // WMATIC
     pegswapAddress: "0xAA1DC356dc4B18f30C347798FD5379F3D77ABC5b",
   },
@@ -69,7 +62,6 @@ export const networkConfig: { [key: number]: any } = {
     keepersRegistry: "0x02777053d6764996e594c3E88AF1D58D5363a2e6",
     minWaitPeriodSeconds: 86400,
     dexAddress: "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff",
-    linkContractBalance: ethers.utils.parseEther("5"),
     erc20AssetAddress: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
   },
 };

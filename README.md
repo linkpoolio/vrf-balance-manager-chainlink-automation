@@ -10,41 +10,34 @@ The VRF Balancer is a configutable smartcontract that allows you to automaticall
 
 - Install any wallet to your browser (Metamask, etc.)
 
-### 2. Setup Ganache
-
-- Install ganache client locally
-- Run ganache
-- Confirm test eth on ganache account
-- Set metamask to ganache network
-
 ## III. Local Setup
 
 ### 1. Clone repo
 
 ```
-$ git clone git@github.com:linkpoolio/vrf-balance-chainlink-automation.git
+git clone git@github.com:linkpoolio/vrf-balance-chainlink-automation.git
 ```
 
 ### 2. Setup .env file
 
 ```
 # from /root
-$ echo "NETWORK=ganache" >> .env
-$ echo "RPC_URL=\"http://127.0.0.1:7545\"" >> .env
+echo "NETWORK=hardhat" >> .env
+echo "RPC_URL=\"http://127.0.0.1:7545\"" >> .env
 ```
 
 ### 3. Install dependencies.
 
 ```
 # from /root
-$ pnpm install
+npm install
 ```
 
 ### 4. Deploy contract
 
 ```
 # from /root
-$ make deploy
+make deploy
 ```
 
 ## IV. Run the App
@@ -53,7 +46,7 @@ $ make deploy
 
 ```
 # from /root/ui
-$ pnpm storybook
+npm storybook
 ```
 
 ### 2. View app
@@ -66,35 +59,32 @@ $ pnpm storybook
 
 ```bash
 # from root
-$ make test-contracts
+make test-contracts
 ```
 
 ### 2. Check test coverage
 
 ```bash
 # from root
-$ make coverage
+make coverage
 ```
 
 ## VI. Deploy
 
-Contract Addresses
-
-Polygon Mainnet
-
-```sol
-address ERC20_LINK_ADDRESS = 0x53E0bca35eC356BD5ddDFebbD1Fc0fD03FaBad39;
-address ERC677_LINK_ADDRESS = 0xb0897686c545045aFc77CF20eC7A532E3120E0F1;
-address PEGSWAP_ADDRESS = 0xAA1DC356dc4B18f30C347798FD5379F3D77ABC5b;
-address REGISTRAR_ADDRESS = 0x6179B349067af80D0c171f43E6d767E4A00775Cd;
-address VRF_COORDINATOR = 0xAE975071Be8F8eE67addBC1A82488F1C24858067
+```bash
+make deploy
 ```
 
-Binance Mainnet
+Example Constructor Arguments (See `network.config.ts` for more networks)
 
-```sol
-address ERC20_LINK_ADDRESS = 0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD;
-address ERC677_LINK_ADDRESS = 0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
-address PEGSWAP_ADDRESS = 0x1FCc3B22955e76Ca48bF025f1A6993685975Bb9e;
-address VRF_COORDINATOR = 0xc587d9053cd1118f25F645F9E08BB98c9712A4EE
+```json
+    name: "binance-mainnet",
+    linkTokenERC677: "0x404460C6A5EdE2D891e8297795264fDe62ADBB75",
+    linkTokenERC20: "0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD",
+    vrfCoordinatorV2: "0xc587d9053cd1118f25F645F9E08BB98c9712A4EE",
+    keepersRegistry: "0x02777053d6764996e594c3E88AF1D58D5363a2e6",
+    minWaitPeriodSeconds: 86400, // 1 day
+    dexAddress: "0x10ED43C718714eb63d5aA57B78B54704E256024E", // PancakeSwap Router
+    erc20AssetAddress: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", // WBNB
+    pegswapAddress: "0x1FCc3B22955e76Ca48bF025f1A6993685975Bb9e",
 ```

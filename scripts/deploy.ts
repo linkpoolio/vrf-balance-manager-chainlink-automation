@@ -1,4 +1,4 @@
-import { ethers, network } from "hardhat";
+import { network } from "hardhat";
 import { networkConfig } from "../network.config";
 import { deploy } from "../test/utils/helpers";
 
@@ -15,7 +15,6 @@ async function main() {
     keepersRegistry: networkConfig[chainId].keepersRegistry,
     minWaitPeriodSeconds: networkConfig[chainId].minWaitPeriodSeconds,
     dexAddress: networkConfig[chainId].dexAddress,
-    linkContractBalance: networkConfig[chainId].linkContractBalance,
     erc20AssetAddress: networkConfig[chainId].erc20AssetAddress,
     pegswapAddress: networkConfig[chainId].pegswapAddress,
   };
@@ -27,7 +26,6 @@ async function main() {
     networkName.keepersRegistry,
     networkName.minWaitPeriodSeconds,
     networkName.dexAddress,
-    networkName.linkContractBalance,
     networkName.erc20AssetAddress,
   ]);
 

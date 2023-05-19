@@ -28,7 +28,6 @@ contract VRFBalancer is IVRFBalancer, Pausable, AutomationCompatibleInterface {
     address public owner;
     address public keeperRegistryAddress;
     uint256 public minWaitPeriodSeconds;
-    uint256 contractLINKMinBalance;
     uint64[] private watchList;
     uint256 private constant MIN_GAS_FOR_TRANSFER = 55_000;
     bool public needsPegswap;
@@ -44,7 +43,7 @@ contract VRFBalancer is IVRFBalancer, Pausable, AutomationCompatibleInterface {
     mapping(uint64 => Target) internal s_targets;
 
     event FundsAdded(uint256 amountAdded, uint256 newBalance, address sender);
-    event FundsWithdrawn(uint256 amountWithdrawn, address payee);
+    event FundsWithdrawn(uint256 amountWithdrawn, address payee, address asset);
     event TopUpSucceeded(uint64 indexed subscriptionId);
     event TopUpFailed(uint64 indexed subscriptionId);
     event KeeperRegistryAddressUpdated(address oldAddress, address newAddress);
@@ -75,13 +74,6 @@ contract VRFBalancer is IVRFBalancer, Pausable, AutomationCompatibleInterface {
         _;
     }
 
-    modifier onlyKeeperRegistry() {
-        if (msg.sender != keeperRegistryAddress) {
-            revert OnlyKeeperRegistry();
-        }
-        _;
-    }
-
     constructor(
         address erc677linkTokenAddress,
         address erc20linkTokenAddress,
@@ -89,7 +81,6 @@ contract VRFBalancer is IVRFBalancer, Pausable, AutomationCompatibleInterface {
         address keeperAddress,
         uint256 minPeriodSeconds,
         address dexContractAddress,
-        uint256 linkContractBalance,
         address erc20AssetAddress,
         uint8 maxWatchList
     ) {
@@ -99,7 +90,6 @@ contract VRFBalancer is IVRFBalancer, Pausable, AutomationCompatibleInterface {
         setKeeperRegistryAddress(keeperAddress);
         setMinWaitPeriodSeconds(minPeriodSeconds);
         setDEXAddress(dexContractAddress);
-        setContractLINKMinBalance(linkContractBalance);
         setERC20Asset(erc20AssetAddress);
         setMaxWatchListSize(maxWatchList);
     }
@@ -165,6 +155,9 @@ contract VRFBalancer is IVRFBalancer, Pausable, AutomationCompatibleInterface {
      * @param topUpAmount The amount to top up the subscription by when it falls below the minimum.
      */
     function addSubscription(uint64 subscriptionId, uint256 minBalance, uint256 topUpAmount) external onlyOwner {
+        if (watchList.length >= maxWatchListSize) {
+            revert InvalidWatchList();
+        }
         if (subscriptionId == 0) {
             revert InvalidWatchList();
         }
@@ -194,7 +187,7 @@ contract VRFBalancer is IVRFBalancer, Pausable, AutomationCompatibleInterface {
      * @param subscriptionId The subscription ID to delete.
      */
     function deleteSubscription(uint64 subscriptionId) external onlyOwner {
-        s_targets[subscriptionId].isActive = false;
+        delete s_targets[subscriptionId];
         uint64[] memory oldWatchList = watchList;
         uint64[] memory newWatchList = new uint64[](oldWatchList.length - 1);
         uint256 count = 0;
@@ -285,9 +278,10 @@ contract VRFBalancer is IVRFBalancer, Pausable, AutomationCompatibleInterface {
 
                 if (success) {
                     s_targets[needsFunding[idx]].lastTopUpTimestamp = uint56(block.timestamp);
+                    contractBalance -= target.topUpAmount;
                     emit TopUpSucceeded(needsFunding[idx]);
                 } else {
-                    emit TopUpFailed(needsFunding[idx]);
+                    revert("top up failed");
                 }
             }
             if (gasleft() < MIN_GAS_FOR_TRANSFER) {
@@ -309,7 +303,7 @@ contract VRFBalancer is IVRFBalancer, Pausable, AutomationCompatibleInterface {
         return (upkeepNeeded, performData);
     }
 
-    function performUpkeep(bytes calldata performData) external override onlyKeeperRegistry whenNotPaused {
+    function performUpkeep(bytes calldata performData) external override whenNotPaused {
         uint64[] memory needsFunding = abi.decode(performData, (uint64[]));
         if (needsFunding.length > 0) {
             if (needsPegswap) {
@@ -411,24 +405,6 @@ contract VRFBalancer is IVRFBalancer, Pausable, AutomationCompatibleInterface {
     }
 
     /**
-     * @notice Sets the minimum LINK balance the contract should have.
-     * @param amount The minimum LINK balance in wei.
-     */
-    function setContractLINKMinBalance(uint256 amount) public onlyOwner {
-        require(amount > 0);
-        emit ContractLINKMinBalanceUpdated(contractLINKMinBalance, amount);
-        contractLINKMinBalance = amount;
-    }
-
-    /**
-     * @notice Gets the minimum LINK balance the contract should have.
-     * @return uint256 The minimum LINK balance in wei.
-     */
-    function getContractLINKMinBalance() external view returns (uint256) {
-        return contractLINKMinBalance;
-    }
-
-    /**
      * @notice Sets the address of the ERC20 asset being traded.
      * @param assetAddress The address of the ERC20 asset.
      *
@@ -480,9 +456,14 @@ contract VRFBalancer is IVRFBalancer, Pausable, AutomationCompatibleInterface {
         return paused();
     }
 
-    function withdraw(uint256 amount, address payable payee) external onlyOwner {
-        require(payee != address(0));
-        emit FundsWithdrawn(amount, payee);
+    /**
+     * @notice Withdraw ERC677 LINK tokens from the contract.
+     * @param amount The amount of LINK to withdraw.
+     * @param payee The address to send the LINK to.
+     */
+    function withdraw(uint256 amount, address payee) external onlyOwner {
+        require(payee != address(0), "Payee cannot be 0x");
+        emit FundsWithdrawn(amount, payee, address(erc677Link));
         bool ok = erc677Link.transfer(payee, amount);
         require(ok, "LINK transfer failed");
     }
@@ -555,12 +536,14 @@ contract VRFBalancer is IVRFBalancer, Pausable, AutomationCompatibleInterface {
     /**
      * @notice Withdraw token assets.
      * @param asset The address of the token to withdraw.
+     * @param payee The address to send the tokens to.
      *
      */
-    function withdrawAsset(address asset) external onlyOwner {
+    function withdrawAsset(address asset, address payee) external onlyOwner {
+        require(payee != address(0), "Payee cannot be 0x");
         uint256 balance = IERC20(asset).balanceOf(address(this));
         require(balance > 0, "Nothing to withdraw");
-        bool ok = IERC20(asset).transfer(msg.sender, balance);
-        require(ok, "token transfer failed");
+        IERC20(asset).safeTransfer(payee, balance);
+        emit FundsWithdrawn(balance, payee, asset);
     }
 }
