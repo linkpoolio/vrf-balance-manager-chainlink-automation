@@ -9,7 +9,6 @@ describe("VRF Balance Manager", function () {
   const BASE_FEE = "2500000000";
   const GAS_PRICE_LINK = 1e9;
   const minWaitPeriodSeconds = 60;
-  const linkContractBalance = ethers.utils.parseEther("5");
   let owner: any,
     linkTokenERC20: any,
     linkTokenERC677: any,
@@ -113,7 +112,6 @@ describe("VRF Balance Manager", function () {
       owner.address,
       minWaitPeriodSeconds,
       uniswapV2RouterMock.address,
-      linkContractBalance,
       erc20WETHMock.address,
       maxWatchListSize,
     ]);
@@ -467,7 +465,7 @@ describe("VRF Balance Manager", function () {
         ethers.utils.parseEther("10")
       );
       const before = await erc20WETHMock.balanceOf(owner.address);
-      await vrfBalancer.withdrawAsset(erc20WETHMock.address);
+      await vrfBalancer.withdrawAsset(erc20WETHMock.address, owner.address);
       const after = await erc20WETHMock.balanceOf(owner.address);
       assert(
         after.sub(before).toString() == ethers.utils.parseEther("10").toString()
@@ -479,7 +477,7 @@ describe("VRF Balance Manager", function () {
         ethers.utils.parseEther("10")
       );
       const before = await linkTokenERC677.balanceOf(owner.address);
-      await vrfBalancer.withdrawAsset(linkTokenERC677.address);
+      await vrfBalancer.withdrawAsset(linkTokenERC677.address, owner.address);
       const after = await linkTokenERC677.balanceOf(owner.address);
       assert(
         after.sub(before).toString() == ethers.utils.parseEther("10").toString()

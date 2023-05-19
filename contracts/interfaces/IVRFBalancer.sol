@@ -18,7 +18,6 @@ interface IVRFBalancer {
     function setMaxWatchListSize(uint8 size) external;
     function setMinWaitPeriodSeconds(uint256 period) external;
     function setDEXAddress(address dexAddress) external;
-    function setContractLINKMinBalance(uint256 amount) external;
     function setERC20Asset(address assetAddress) external;
     function setPegSwapRouter(address pegSwapAddress) external;
     function setERC20Link(address newAddress) external;
@@ -27,7 +26,6 @@ interface IVRFBalancer {
     function getERC677Address() external view returns (address);
     function getERC20Address() external view returns (address);
     function getDEXRouter() external view returns (address);
-    function getContractLINKMinBalance() external view returns (uint256);
     function getERC20Asset() external view returns (address);
     function getAssetBalance(address asset) external view returns (uint256);
     function getPegSwapRouter() external view returns (address);
@@ -36,6 +34,6 @@ interface IVRFBalancer {
     function unpause() external;
     function isPaused() external view returns (bool);
 
-    function withdraw(uint256 amount, address payable payee) external;
-    function withdrawAsset(address asset) external;
+    function withdraw(uint256 amount, address payee) external;
+    function withdrawAsset(address asset, address payee) external;
 }
